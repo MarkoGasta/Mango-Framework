@@ -24,31 +24,38 @@ IN THE SOFTWARE.
 ]]--
 
 --// SERVICES \\--
-local ReplicatedFirst = game:GetService("ReplicatedFirst")
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+local Players = game:GetService("Players")
 
 --// CONFIG \\--
+
 local MODULE_WAIT_TIMEOUT = 10
 local MODULE_CONTAINERS = {
-    ReplicatedFirst,
-    ReplicatedStorage:WaitForChild("Controllers"),
-    ReplicatedStorage:WaitForChild("Settings"),
-    ReplicatedStorage:WaitForChild("Resources"),
-    ReplicatedStorage:WaitForChild("MangoControllers"),
-    ReplicatedStorage:WaitForChild("MangoResources"),
+	ServerStorage:WaitForChild("Services"),
+	ServerStorage:WaitForChild("Resources"),
+    ServerStorage:WaitForChild("MangoServices"),
+    ServerStorage:WaitForChild("MangoResources"),
+	ReplicatedStorage:WaitForChild("Settings"),
+	ReplicatedStorage:WaitForChild("Resources"):WaitForChild("Shared"),
+	ReplicatedStorage:WaitForChild("MangoResources"):WaitForChild("Shared"),
 }
 
 --// MODULES \\--
+
 local Types = require(script.Types)
 
 --// TYPES \\--
 
 --// CONSTANTS \\--
-local MangoClient = {
-    Global = {}
+
+local MangoServer = {
+    Global = {} :: {string: any}
 }
 
 --// VARIABLES \\--
+
 local moduleCache = {}
 
 --// FUNCTIONS \\--
@@ -67,7 +74,7 @@ local function CacheModule(moduleName: string, module: table)
 end
 
 --- Uses a class name to require or return a cached class.
-local function Require(moduleName: string)
+local function Require(moduleName: Types.ModuleNames)
     if moduleCache[moduleName] then
         return moduleCache[moduleName]
     end
@@ -92,7 +99,7 @@ local function Require(moduleName: string)
 
             -- If the module being required is being called by a construction method, pre-construct the module if it has one.
             local callingFunction = debug.info(2, "n")
-            local constructionMethod = MangoClient.Global.__ConstructionMethod
+            local constructionMethod = MangoServer.Global.__ConstructionMethod
             local isCallingFunctionConstructor = callingFunction == constructionMethod
             local isRequiredModuleTable = typeof(requiredModule) == "table"
             if isRequiredModuleTable then
@@ -100,7 +107,7 @@ local function Require(moduleName: string)
                 local wasRequiredModuleConstructed = requiredModule["__IsConstructed"] == true
                 if isCallingFunctionConstructor and hasRequiredModuleConstructionMethod and not wasRequiredModuleConstructed then
                     requiredModule[constructionMethod]()
-                    requiredModule[MangoClient.Global.__ConstructedFlag] = true
+                    requiredModule[MangoServer.Global.__ConstructedFlag] = true
                 end
             end
 
@@ -110,13 +117,71 @@ local function Require(moduleName: string)
         currentTime = os.clock()
         task.wait(1)
     end
-
+    
     LogError(`Module "{moduleName}" not found in specified containers, waited {MODULE_WAIT_TIMEOUT} seconds!`)
-    return nil
 end
 
---// EXPORTS \\--
-MangoClient.CacheModule = CacheModule
-MangoClient.Require = Require
+-- Returns the players cache.
+local function GetPlayerCache(player: Player)
+    
+    -- Getting modules and data.
+    local WaitFor = Require("WaitFor")
+    local success: boolean, playerCache: table = WaitFor.Custom(function()
+        return MangoServer.Global.PlayerCache[player]
+    end):timeout(5):await()
 
-return MangoClient
+    -- Checking if successfully got player cache.
+    if not success then
+        warn(`Failed to get player cache for {player}`)
+        return
+    end
+
+    return playerCache
+end
+
+-- Gets the value of a specific key in a players cache.
+local function GetPlayerCacheKeyValue(player: Player, key: string)
+
+    -- Getting cache key value.
+	local playerCache = GetPlayerCache(player)
+    return playerCache[key]
+end
+
+-- Sets the value of a specific key in a players cache.
+local function SetPlayerCacheKeyValue(player: Player, key: string, value: any)
+
+    -- Writing value to key in cache.
+    local playerCache = GetPlayerCache(player)
+    playerCache[key] = value
+end
+
+-- Handles player being added to the game.
+local function PlayerAdded(player: Player)
+
+    -- Creating player cache.
+    MangoServer.Global.PlayerCache[player] = {}
+end
+
+-- Handles player leaving the game.
+local function PlayerRemoving(player: Player)
+    
+    -- Destroying player cache.
+    MangoServer.Global.PlayerCache[player] = nil
+end
+
+--// RUNTIME \\--
+for _, player: Player in Players:GetPlayers() do
+    PlayerAdded(player)
+end
+
+local Connector = Require("Connector")
+-- Connector.ConnectWithPriority(Players.PlayerAdded, Connector.Enum.DefaultPriority - 10, PlayerAdded)
+-- Connector.ConnectWithPriority(Players.PlayerRemoving, Connector.Enum.DefaultPriority + 10, PlayerRemoving)
+
+--// EXPORTS \\--
+MangoServer.GetPlayerCacheKeyValue = GetPlayerCacheKeyValue
+MangoServer.SetPlayerCacheKeyValue = SetPlayerCacheKeyValue
+MangoServer.CacheModule = CacheModule
+MangoServer.Require = Require :: Types.Modules
+
+return MangoServer

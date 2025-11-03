@@ -1,4 +1,3 @@
---!strict
 --// Script by: MarkoGasta2 \\--
 
 --[[ 

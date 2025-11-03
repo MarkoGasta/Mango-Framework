@@ -23,9 +23,6 @@ IN THE SOFTWARE.
 -----------------------------------------------------------------------------
 ]]--
 
--- Type checking flags:
---!strict
-
 --// SERVICES \\--
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -35,6 +32,10 @@ local Players = game:GetService("Players")
 
 local DEBUG_LOGGING = false
 local PROGRES_LOGGING = true
+local GAME_CONTROLLER_REQUIRED = true
+local CONSTRUCTED_FLAG = "__IsConstructed"
+local CONSTRUCTION_METHOD = "__Construct"
+local INITIALIZATION_METHOD = "__Init"
 local CONTROLLER_CONTAINERS = {
     ReplicatedStorage:WaitForChild("Controllers"),
     ReplicatedStorage:WaitForChild("MangoControllers"),
@@ -100,6 +101,11 @@ if not RuntimeSettings.CONTROLLER_PRIORITIES then
     return
 end
 
+-- Adding global values.
+MangoClient.Global.__ConstructedFlag = CONSTRUCTED_FLAG
+MangoClient.Global.__ConstructionMethod = CONSTRUCTION_METHOD
+MangoClient.Global.__InitializationMethod = INITIALIZATION_METHOD
+
 -- Initiating client runtime.
 LogProgress(`Initiating client runtime...`)
 LogDebug("Gathering controllers...")
@@ -125,47 +131,55 @@ end
 -- Waiting for server to load all services.
 if not PublicValues.GetValue("ServerLoaded") then
     LogProgress(`Waiting for the server to load...`)
-    PublicValues.WaitForValue("ServerLoaded")
+    PublicValues.WaitForValue("ServerLoaded", 120)
 end
 
--- Waiting for player data to load.
-LogProgress("Waiting for player data to load...")
-local playersWithLoadedData = PublicValues.WaitForValue("PlayersWithLoadedData")
-if not table.find(playersWithLoadedData, Player.Name) then
-
-    -- Checking if the players data in loaded.
-    local playersDataLoadedConnection: RBXScriptConnection
-    local isPlayersDataLoaded: boolean = table.find(PublicValues.GetValue("PlayersWithLoadedData"), Player.Name)
-    if not isPlayersDataLoaded then
-        playersDataLoadedConnection = PublicValues.GetValueChangedSignal("PlayersWithLoadedData"):Connect(function()
-            isPlayersDataLoaded = table.find(PublicValues.GetValue("PlayersWithLoadedData"), Player.Name)
-            if isPlayersDataLoaded then
-                playersDataLoadedConnection:Disconnect()
-                LogProgress("Player data loaded!")
-            end
-        end)
-
-        LogDebug(`Data hasn't been found instantly, waiting for it to load...`)
-    end
-end
-
--- Loading controllers.
-LogDebug("Initiating controllers...")
+-- Constructing controllers.
+LogDebug("Constructing controllers...")
 for _, controller: ModuleScript in controllers do
     LogDebug(`Requiring {controller.Name}...`)
-    local controllerRequireStartTime = os.clock()
+    local controllerConstructionStartTime = os.clock()
     local requiredController = MangoClient.Require(controller.Name)
 
     -- Calling init if it exists.
     LogDebug('Requiring successful!')
+    if requiredController[CONSTRUCTED_FLAG] then
+        LogProgress(`🔨 {controller.Name} was pre-constructed, skipping construction...`)
+    else
+        LogDebug(`Starting {controller.Name} construction...`)
+        if requiredController[CONSTRUCTION_METHOD] then
+            xpcall(requiredController[CONSTRUCTION_METHOD], Logger.warn)
+        else
+            Logger.warn(`Controller {controller.Name} is missing construction method {CONSTRUCTION_METHOD}!`)
+            continue
+        end
+
+        -- Logging time to require and construct.
+        local constructTimeTaken = os.clock() - controllerConstructionStartTime
+        local timeTakenFormatted = math.round(constructTimeTaken * 1000)
+        LogProgress(`🔨 {controller.Name} constructed, took {timeTakenFormatted}ms!`)
+    end
+end
+
+-- Initializing controllers.
+LogDebug("Initializing controllers...")
+for _, controller: ModuleScript in controllers do
+    local controllerRequireStartTime = os.clock()
+    local requiredController = MangoClient.Require(controller.Name)
+
+    -- Calling init if it exists.
     LogDebug(`Starting {controller.Name} initialization...`)
-    if requiredController.Init then
-        xpcall(requiredController.Init, Logger.warn)
+    if requiredController[INITIALIZATION_METHOD] then
+        xpcall(requiredController[INITIALIZATION_METHOD], Logger.warn)
+    else
+        Logger.warn(`Controller {controller.Name} is missing initialization method {INITIALIZATION_METHOD}!`)
+        continue
     end
     
     -- Logging time to require and initiate.
     local initTimeTaken = os.clock() - controllerRequireStartTime
-    LogProgress(`Controller {controller.Name} initialized, took {initTimeTaken}ms!`)
+    local timeTakenFormatted = math.round(initTimeTaken * 1000)
+    LogProgress(`🔥 {controller.Name} initialized, took {timeTakenFormatted}ms!`)
 end
 
 -- Client has loaded.
@@ -174,4 +188,12 @@ LogProgress("Client runtime initialized!")
 
 -- Starting game and notifying server player has loaded.
 local GameController = MangoClient.Require("GameController")
-GameController.Start()
+if GameController and GAME_CONTROLLER_REQUIRED then
+    if GameController.Start then
+        GameController.Start()
+    else
+        Logger.warn(`GameController is missing a Start method!`)
+    end
+else
+    Logger.warn("GameController not found, please ensure it exists in your Controllers folder! (ReplicatedStorage.Controllers)")
+end

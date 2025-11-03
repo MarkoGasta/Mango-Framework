@@ -23,9 +23,6 @@ IN THE SOFTWARE.
 -----------------------------------------------------------------------------
 ]]--
 
--- Type checking flags:
---!strict
-
 --// SERVICES \\--
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -119,7 +116,7 @@ local function WaitForValue(valueName: string, timeout: number?)
 			return nil
 		end
 
-		if math.round(currentTime - startTime) == INFINITE_YIELD_WARN_TIME then
+		if math.round(currentTime - startTime) == INFINITE_YIELD_WARN_TIME and not timeout then
 			LogError(`Waiting for value "{valueName}" is yielding for over {INFINITE_YIELD_WARN_TIME} seconds.` ..
 			`\n\n` ..
 			`Traceback: {debug.traceback()}`)

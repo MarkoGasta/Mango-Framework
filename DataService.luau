@@ -1,4 +1,3 @@
---!strict
 --// Script by: MarkoGasta2 \\--
 
 --// CONFIG \\--
@@ -201,14 +200,6 @@ DataService.SetOrderedDataKeyValue = SetOrderedDataKeyValue
 
 -- Initiation method.
 function DataService.Init()
-
-    -- Setting metamethod. When a new players data is loaded, update the public value too.
-    setmetatable(playersDataLoaded, {
-        __newindex = function(t, i, v)
-            rawset(t, i, v)
-            PublicValues.SetValue("PlayersDataLoaded", t)
-        end
-    })
     
     -- Iterating over joined players.
     for _, player: Player in Players:GetPlayers() do
