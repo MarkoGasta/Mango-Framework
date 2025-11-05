@@ -148,9 +148,15 @@ for _, controller: ModuleScript in controllers do
     else
         LogDebug(`Starting {controller.Name} construction...`)
         if requiredController[CONSTRUCTION_METHOD] then
-            xpcall(requiredController[CONSTRUCTION_METHOD], Logger.warn)
+            local success = xpcall(requiredController[CONSTRUCTION_METHOD], Logger.error)
+            if not success then
+                Logger.warn(`Failed to construct {controller.Name}, will attempt to continue without it.`)
+                table.remove(controllers, table.find(controllers, controller))
+                continue
+            end
         else
-            Logger.warn(`Controller {controller.Name} is missing construction method {CONSTRUCTION_METHOD}!`)
+            Logger.warn(`Controller {controller.Name} is missing construction method {CONSTRUCTION_METHOD}, will attempt to continue without it!`)
+            table.remove(controllers, table.find(controllers, controller))
             continue
         end
 

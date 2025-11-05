@@ -28,7 +28,7 @@ function GameController.__Construct()
 
         --- Starts the game loop.
         local function Start()
-
+            
         end
 
         --// RUNTIME \\--

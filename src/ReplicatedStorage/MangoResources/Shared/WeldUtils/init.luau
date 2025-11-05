@@ -32,47 +32,63 @@ IN THE SOFTWARE.
 
 --// MODULES \\--
 
+local TableUtils = require(script.TableUtils)
+
 --// TYPES \\--
+
+type WeldOptions = {
+	KeepOffset: boolean?,
+}
 
 --// CONSTANTS \\--
 
---// VARIABLES \\--
+local WeldUtils = {}
+local WeldOptionsDefaults: WeldOptions = {
+	KeepOffset = true,
+}
 
-local InstanceUtils = {}    
+--// VARIABLES \\--
 
 --// FUNCTIONS \\--
 
 --[=[
-	Finds a child instance using a dot-separated path string.
+	Creates a weld between two parts with optional offset preservation.
 
 	### Parameters:
 	```luau
-	parent: Instance -- The parent instance to start the search from.
-	path: string -- Dot-separated path to the target instance.
+	primaryPart: BasePart -- The primary part (Part0) of the weld.
+	secondaryPart: BasePart -- The secondary part (Part1) of the weld.
+	options = {
+		KeepOffset: boolean? -- Whether to preserve the current offset between parts.
+	}
 	```
 
 	### Returns:
 	```luau
-	Instance? -- The found instance, or nil if not found within timeout.
+	type Weld -- The created weld.
 	```
 ]=]
-local function FindChildWithStringPath(parent: Instance, path: string)
-    local currentInstance: Instance = parent
-    local pathSegments = string.split(path, ".")
+local function Weld(primaryPart: BasePart, secondaryPart: BasePart, options: WeldOptions?): Weld
+	options = options and TableUtils.MergeDictionaries(options, WeldOptionsDefaults) or WeldOptionsDefaults
 
-    for _, segment in pathSegments do
-        currentInstance = currentInstance:WaitForChild(segment, 5)
-        if not currentInstance then
-            return nil
-        end
-    end
+	local weld = Instance.new("Weld")
+	weld.Part0 = primaryPart
+	weld.Part1 = secondaryPart
 
-    return currentInstance
+	if options.KeepOffset then
+		local primaryCFrame = primaryPart.CFrame
+		local secondaryCFrame = secondaryPart.CFrame
+		local offsetCFrame = primaryCFrame:Inverse() * secondaryCFrame
+		weld.C0 = offsetCFrame
+	end
+
+	weld.Parent = primaryPart
+	return weld
 end
 
 --// RUNTIME \\--
 
 --// EXPORTS \\--
-InstanceUtils.FindChildWithStringPath = FindChildWithStringPath
+WeldUtils.Weld = Weld
 
-return InstanceUtils
+return WeldUtils

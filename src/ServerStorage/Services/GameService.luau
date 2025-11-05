@@ -12,7 +12,6 @@ function GameService.__Construct()
 
     --// MODULES \\--
     local MangoServer = require(ServerStorage:WaitForChild("MangoServer"))
-    local Logger = MangoServer.Require("Logger")
 
     --// TYPES \\--
 
@@ -29,7 +28,7 @@ function GameService.__Construct()
 
         --- Starts the game loop.
         local function Start()
-            
+
         end
 
         --// RUNTIME \\--

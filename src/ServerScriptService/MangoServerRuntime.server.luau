@@ -27,7 +27,7 @@ IN THE SOFTWARE.
 local ServerStorage = game:GetService("ServerStorage")
 
 --// CONFIG \\--
-local DEBUG_LOGGING = false
+local DEBUG_LOGGING = true
 local PROGRES_LOGGING = true
 local GAME_SERVICE_REQUIRED = true
 local CONSTRUCTED_FLAG = "__IsConstructed"
@@ -135,10 +135,13 @@ for _, service: ModuleScript in services do
         if requiredService[CONSTRUCTION_METHOD] then
             local success = xpcall(requiredService[CONSTRUCTION_METHOD], Logger.error)
             if not success then
+                Logger.warn(`Failed to construct {service.Name}, will attempt to continue without it.`)
+                table.remove(services, table.find(services, service))
                 continue
             end
         else
-            Logger.error(`{service.Name} is missing construction method {CONSTRUCTION_METHOD}!`)
+            Logger.warn(`{service.Name} is missing construction method {CONSTRUCTION_METHOD}, will attempt to continue without it!`)
+            table.remove(services, table.find(services, service))
             continue
         end
         

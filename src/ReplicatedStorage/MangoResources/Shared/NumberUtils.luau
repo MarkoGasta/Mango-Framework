@@ -1,103 +1,127 @@
---// Script by: MarkoGasta2 \\--
+--[[
+-----------------------------------------------------------------------------
+Last Updated - 15. Oct 2025.
+Copyright 2025 MarkoGasta @ Studio Blackout
 
---// CONFIG \\--
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the“Software”),
+to deal in the Software without restriction, including without
+limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to
+whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+-----------------------------------------------------------------------------
+]]--
+
+-- Type checking flags:
+--!strict
 
 --// SERVICES \\--
 
---// CONSTANTS \\--
+--// CONFIG \\--
+
+local ABBREVIATION_OVERFLOW_SUFFIX = "+"
+local ABBREVIATION_SUFFIXES = {
+	"", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"
+}
 
 --// MODULES \\--
 
---// VARIABLES \\--
+--// TYPES \\--
+
+--// CONSTANTS \\--
 
 local NumberUtils = {}
 
+--// VARIABLES \\--
+
 --// FUNCTIONS \\--
 
-local function NumberToName(number : any)
-	number = tostring(number or ""):match("^0*(.*)$")
-	if #number == 0 then return "zero" end
-	if #number > 3 then
-		local x = {"thousand", "million", "billion", "trillion", "quadrillion", "quintillion", "sextillion", "septillion", "octillion", "nonillion"}
-		local y = {"", "un", "duo", "tre", "quattuor", "quin", "sex", "septen", "octo", "novem"}
-		local z = {"t", "dec", "vigint", "trigint", "quadragint", "quinquagint", "sexagint", "septuagint", "octogint", "nonagint"}
-		for i = 2, #z do
-			for j = 1, #y do
-				x[#x+1] = y[j]..z[i].."illion"
-			end
-		end
-		y[3], y[10] = "do", "ovem"
-		local v = {"cen", "ducen", "trecen", "quadringen", "quingen", "sescen", "septingen", "optingen", "nongen"}
-		for h = 1, #v do
-			for i = 1, #z do
-				for j = 1, #y do
-					x[#x+1] = v[h]..y[j]..z[i].."illion"
-				end
-			end
-		end
-		x[#x+1] = "millillion"
-		local c = (#number - 1)%3 + 1
-		local remain = number:sub(c+1)
-		return NumberToName(number:sub(1, c)).." "..x[math.ceil(#number/3)-1]..(remain:find("[^0]") and " "..NumberToName(remain) or "")
+--[=[
+	Formats a number by inserting commas as thousands separators in the integer part.
+
+	### Parameters:
+	```luau
+	number: number -- The number to format.
+	```
+
+	### Returns:
+	```luau
+	string -- The formatted number string with commas.
+	```
+]=]
+local function SeparateNumber(number: number): string
+	local numberString = tostring(number)
+
+	-- Split the number into integer and decimal parts.
+	local integerPart, decimalPart = string.match(numberString, "([^.]*)%.?(.*)")
+
+	-- Insert commas into the integer part.
+	integerPart = string.reverse(integerPart)
+	integerPart = string.gsub(integerPart, "(%d%d%d)", "%1,")
+	integerPart = string.reverse(integerPart)
+	if string.sub(integerPart, 1, 1) == "," then
+		integerPart = string.sub(integerPart, 2)
 	end
-	local a = {"one", "two", "three", "four", "five", "six", "seven", "eight", "nine"}
-	local b = {"", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"}
-	local c = {[0] = "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"}
-	if #number == 1 then
-		return a[tonumber(number)]
-	elseif #number == 2 then
-		local ones = tonumber(number:sub(2, 2))
-		local tens = tonumber(number:sub(1, 1))
-		if tens == 1 then
-			return c[ones]
-		elseif ones == 0 then
-			return b[tens]
-		else
-			return b[tens].." "..a[ones]
-		end
-	elseif #number == 3 then
-		local rest = NumberToName(number:sub(2))
-		return a[tonumber(number:sub(1, 1))].." hundred"..(rest == "zero" and "" or " "..rest)
+
+	-- Reconstruct the number with decimal part if it exists.
+	if decimalPart ~= "" then
+		return integerPart .. "." .. decimalPart
+	else
+		return integerPart
 	end
 end
 
-local function AbbreviateNumber(number : number)
-	local curAbbreav = ''
-	local curNum = number
-	
-	local abbreavs = {
-		{value = 10^3, abbrev = 'k'},
-		{value = 10^6, abbrev = 'M'},
-		{value = 10^9, abbrev = 'B'},
-		{value = 10^12, abbrev = 'Qa'},
-		{value = 10^15, abbrev = 'Qi'},
-		{value = 10^18, abbrev = 'Sx'},
-	}
+--[=[
+	Abbreviates a number using suffixes (K, M, B, T, etc.).
 
-	for _, data in abbreavs do
-		if number / data.value < 1 then break end
+	### Parameters:
+	```luau
+	number: number -- The number to abbreviate.
+	```
 
-		curAbbreav = data.abbrev
-		curNum = math.floor(number / (data.value / 10)) / 10
+	### Returns:
+	```luau
+	string -- The abbreviated number string with appropriate suffix.
+	```
+]=]
+local function AbbreviateNumber(number: number): string
+	local isNegative = number < 0
+	local absoluteNumber = math.abs(number)
+
+	if absoluteNumber < 1000 then
+		return tostring(number)
 	end
 
-	return tostring(curNum) .. curAbbreav
-end
-
-local function CommaNumber(number : number)
-	local formatted = number
-	local k
-	while true do  
-		formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
-		if (k==0) then
-			break
-		end
+	local suffixIndex = 1
+	while absoluteNumber >= 1000 and suffixIndex < #ABBREVIATION_SUFFIXES do
+		absoluteNumber = absoluteNumber / 1000
+		suffixIndex = suffixIndex + 1
 	end
-	return formatted
+
+	local suffix = ABBREVIATION_SUFFIXES[suffixIndex]
+	if suffixIndex >= #ABBREVIATION_SUFFIXES and absoluteNumber >= 1000 then
+		absoluteNumber = 999.99
+		suffix = suffix .. ABBREVIATION_OVERFLOW_SUFFIX
+	end
+
+	local formattedValue = string.format("%.2f", absoluteNumber)
+	return (isNegative and "-" or "") .. formattedValue .. suffix
 end
 
-NumberUtils.NumberToName = NumberToName
-NumberUtils.CommaNumber = CommaNumber
+--// RUNTIME \\--
+
+--// EXPORTS \\--
+NumberUtils.SeparateNumber = SeparateNumber
 NumberUtils.AbbreviateNumber = AbbreviateNumber
-
 return NumberUtils

@@ -34,6 +34,8 @@ local SERVER_LABEL = "SERVER 🖥️"
 
 --// MODULES \\--
 
+local TableUtils = require(script.TableUtils)
+
 --// TYPES \\--
 
 type MessageOptions = {
@@ -56,10 +58,20 @@ local Logger = {}
 
 --// FUNCTIONS \\--
 
---- Handles formatting and logging with any passed function.
---- @param message string The message to log.
---- @param logFunction function The logging function to use (print, warn, error).
-local function Log(message: string, logFunction: (message: string) -> nil, options: MessageOptions)
+
+--[=[
+        Handles formatting and logging using the given function.
+
+        ### Parameters:
+        ```luau
+        message: string -- The message to log.
+        logFunction: (message: string) -> any -- The function used to output the message.
+        options: {
+            PrintCallstack: boolean -- Whether to print the callstack with the message.
+        }
+        ```
+]=]
+local function Log(message: string, logFunction: (message: string) -> any, options: MessageOptions)
     local stackLabel = RunService:IsClient() and CLIENT_LABEL or SERVER_LABEL
     local printString = `[{stackLabel} / {DateTime.now():FormatLocalTime("HH:mm:ss.SSS", "en-us")}] >>\n{message}\n`
 
@@ -69,37 +81,64 @@ local function Log(message: string, logFunction: (message: string) -> nil, optio
     end
 
     -- Logging using logging function.
-    pcall(logFunction, printString)
+    local messageThread = task.spawn(logFunction, printString)
+    while coroutine.status(messageThread) == "running" do
+        task.wait()
+    end
 end
 
 --[=[
-        ```luau
-        local function a()
+        Logs info message to console.
 
-        end
+        ### Parameters:
+        ```luau
+        message: string -- The message to log.
+        options = {
+            PrintCallstack: boolean -- Whether to print the callstack with the message.
+        }
         ```
 ]=]
-function Logger.info(message: string, options: MessageOptions?)
-    local definedOptions = options or InfoMessageOptionsDefault
-
-    -- Formatting and printing.
-    Log(message, print, definedOptions)
+local function Info(message: string, options: MessageOptions?)
+    options = options and TableUtils.MergeDictionaries(options, InfoMessageOptionsDefault) or InfoMessageOptionsDefault
+    Log(message, print, options)
 end
 
--- Logs warning to console.
-function Logger.warn(message: string, options: MessageOptions?)
-    local definedOptions = options or WarnMessageOptionsDefault
-    
-    -- Formatting and printing.
-    Log(message, warn, definedOptions)
+
+--[=[
+        Logs warning message to console.
+
+        ### Parameters:
+        ```luau
+        message: string -- The message to log.
+        options = {
+            PrintCallstack: boolean -- Whether to print the callstack with the message.
+        }
+        ```
+]=]
+local function Warn(message: string, options: MessageOptions?)
+    options = options and TableUtils.MergeDictionaries(options, WarnMessageOptionsDefault) or WarnMessageOptionsDefault
+    Log(message, warn, options)
 end
 
--- Logs error to console.
-function Logger.error(message: string, options: MessageOptions?)
-    local definedOptions = options or WarnMessageOptionsDefault
+--[=[
+        Logs error message to console.
 
-    -- Formatting and printing.
-    Log(message, error, definedOptions)
+        ### Parameters:
+        ```luau
+        message: string -- The message to log.
+        options = {
+            PrintCallstack: boolean -- Whether to print the callstack with the message.
+        }
+        ```
+]=]
+local function Error(message: string, options: MessageOptions?)
+    options = options and TableUtils.MergeDictionaries(options, WarnMessageOptionsDefault) or WarnMessageOptionsDefault
+    Log(message, error, options)
 end
+
+--// EXPORTS \\--
+Logger.info = Info
+Logger.warn = Warn
+Logger.error = Error
 
 return Logger

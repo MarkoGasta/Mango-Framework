@@ -49,8 +49,14 @@ local ValueFolder: Folder
 
 --// FUNCTIONS \\--
 
---- Logs an error message if error logging is enabled.
---- @param message string The error message to log.
+--[=[
+	Logs an error message to the console if error logging is enabled.
+
+	### Parameters:
+	```luau
+	message: string -- The error message to log.
+	```
+]=]
 local function LogError(message: string)
 	if not ERROR_LOGGING then
 		return
@@ -59,6 +65,19 @@ local function LogError(message: string)
 	warn(`[PublicValues] {message}`)
 end
 
+--[=[
+	Creates a new Configuration instance to store a public value.
+
+	### Parameters:
+	```luau
+	valueName: string -- The name of the value instance.
+	```
+
+	### Returns:
+	```luau
+	Configuration -- The created Configuration instance.
+	```
+]=]
 local function CreateValueInstance(valueName: string)
 	local valueInstance = Instance.new("Configuration")
 	valueInstance.Name = valueName
@@ -66,12 +85,36 @@ local function CreateValueInstance(valueName: string)
 	return valueInstance
 end
 
--- Gets or creates a configuration instance in the value storage that stores a value instance.
+--[=[
+	Retrieves the Configuration instance for a public value by name.
+
+	### Parameters:
+	```luau
+	valueName: string -- The name of the value instance to retrieve.
+	```
+
+	### Returns:
+	```luau
+	Configuration? -- The Configuration instance if found, nil otherwise.
+	```
+]=]
 local function GetValueInstance(valueName: string)
 	return ValueFolder:FindFirstChild(valueName)
 end
 
--- Returns value changed signal.
+--[=[
+	Gets the changed signal for a public value that fires when the value changes.
+
+	### Parameters:
+	```luau
+	valueName: string -- The name of the value to monitor.
+	```
+
+	### Returns:
+	```luau
+	RBXScriptSignal? -- The attribute changed signal if the value exists, nil otherwise.
+	```
+]=]
 local function GetValueChangedSignal(valueName: string)
 	if not valueName then
 		LogError(`Argument "valueName" missing`)
@@ -86,7 +129,19 @@ local function GetValueChangedSignal(valueName: string)
 	return valueInstance:GetAttributeChangedSignal("Value")
 end
 
--- Gets a public value.
+--[=[
+	Retrieves the current value of a public value by name.
+
+	### Parameters:
+	```luau
+	valueName: string -- The name of the value to retrieve.
+	```
+
+	### Returns:
+	```luau
+	any -- The stored value, or nil if not found.
+	```
+]=]
 local function GetValue(valueName: string)
 	if not valueName then
 		LogError(`Argument "valueName" missing`)
@@ -103,6 +158,20 @@ local function GetValue(valueName: string)
 	return valueInstance.__Value
 end
 
+--[=[
+	Yields until a public value is set or the timeout is reached.
+
+	### Parameters:
+	```luau
+	valueName: string -- The name of the value to wait for.
+	timeout: number? -- Optional timeout in seconds.
+	```
+
+	### Returns:
+	```luau
+	any -- The value when found, or nil if timeout is reached.
+	```
+]=]
 local function WaitForValue(valueName: string, timeout: number?)
 	if not valueName then
 		LogError(`Argument "valueName" missing`)
@@ -129,9 +198,15 @@ local function WaitForValue(valueName: string, timeout: number?)
 	return GetValue(valueName)
 end
 
---- Creates or modifies an existing public value.
---- @param valueName string The name of the value.
---- @param value any The contents of the value.
+--[=[
+	Sets a public value that can be accessed from both server and client.
+
+	### Parameters:
+	```luau
+	valueName: string -- The name of the value to set.
+	value: any -- The value to store.
+	```
+]=]
 local function SetValue(valueName: string, value: any)
 	if not valueName then
 		LogError(`Argument "valueName" missing`)
@@ -180,4 +255,5 @@ PublicValues.GetValueChangedSignal = GetValueChangedSignal
 PublicValues.WaitForValue = WaitForValue
 PublicValues.GetValue = GetValue
 PublicValues.SetValue = SetValue
+
 return PublicValues

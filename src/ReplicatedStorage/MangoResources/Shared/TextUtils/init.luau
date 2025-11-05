@@ -1,155 +1,148 @@
---// Script by: MarkoGasta2 \\--
+--[[
+-----------------------------------------------------------------------------
+Last Updated - 3. Nov. 2025.
+Copyright 2025 MarkoGasta @ Studio Blackout
 
---// CONFIG \\--
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the“Software”),
+to deal in the Software without restriction, including without
+limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to
+whom the Software is furnished to do so, subject to the following conditions:
 
-local ID_LENGTH = 18
-local ID_SYMBOLS = {
-    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
-    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
-    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
-}
-local DESKTOP_BASE_HEIGHT = 1260
-local MOBILE_BASE_HEIGHT = 393
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+-----------------------------------------------------------------------------
+]]--
 
 --// SERVICES \\--
 
-local Workspace = game:GetService("Workspace")
+--// CONFIG \\--
+
+local DEFAULT_ID_LENGTH = 18
+local AVAILABLE_CHARACTERS = {
+    CapitalLetters = {
+        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"
+    },
+    SmallLetters = {
+        "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"
+    },
+    Numbers = {
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+    },
+    Symbols = {
+        "!", "@", "#", "$", "%", "&", "*", "(", ")", "-", "_", "=", "+", "[", "]", "{", "}", ";", ":", ",", ".", "<", ">", "?",
+    }
+}
 
 --// MODULES \\--
 
-local DeviceUtils = require(script.DeviceUtils)
-local RunService = game:GetService("RunService")
+local TableUtils = require(script.TableUtils)
 
 --// TYPES \\--
 
+type RandomStringOptions = {
+    CapitalLetters: boolean,
+    SmallLetters: boolean,
+    Numbers: boolean,
+    Symbols: boolean
+}
+
 --// CONSTANTS \\--
+
+local RandomStringOptionsDefaults: RandomStringOptions = {
+    CapitalLetters = true,
+    SmallLetters = true,
+    Numbers = false,
+    Symbols = false,
+}
 
 --// VARIABLES \\--
 
 local TextUtils = {}
 
---// FUNCTIONS \\--
+--// FUNCTIONS \--
 
--- Translates a stroke size from a preset resolution to the players resolution. CLIENT ONLY!
-local function TranslateStrokeSize(baseStrokeSize: number): number
-    
-    -- Checking if the code is running on client.
-    if not RunService:IsClient() then
-        warn("This function is client only!")
-        return baseStrokeSize
-    end
+--[=[
+	Generates a random string based on specified character options.
 
-    -- Getting the height of the players display.
-    local playerViewport = Workspace.CurrentCamera.ViewportSize
-    local playerViewportHeight = playerViewport.Y
+	### Parameters:
+	```luau
+	length: number -- The length of the string to generate.
+    options = {
+        CapitalLetters: boolean = true, -- Include capital letters A-Z
+        SmallLetters: boolean = true,   -- Include small letters a-z
+        Numbers: boolean = true, -- Include numbers 0-9
+        Symbols: boolean = false -- Include symbols !@#$%^&*()-_+=[]{};:,.<>?
+    }
+	```
 
-    -- Cheching if viewport height has defaulted.
-    if playerViewportHeight == 1 then
-        while playerViewportHeight == 1 do
-            playerViewportHeight = workspace.CurrentCamera.ViewportSize.Y
+	### Returns:
+	```luau
+	string -- A random string with characters from selected categories.
+	```
+]=]
+local function GenerateRandomString(length: number, options: RandomStringOptions): string
+    options = options and TableUtils.MergeDictionaries(options, RandomStringOptionsDefaults) or RandomStringOptionsDefaults
 
-            -- Preventing exhaustinon.
-            task.wait(0.1)
+    local characterPool = {}
+    local resultString = ""
+    if options.CapitalLetters then
+        for _, capitalLetterCharacter in AVAILABLE_CHARACTERS.CapitalLetters do
+            table.insert(characterPool, capitalLetterCharacter)
         end
     end
 
-    -- Calculating scaling factors based on height.
-    local heightScale: number
-
-    -- Checking what device the player is on.
-    if DeviceUtils.GetDevice() == ("Desktop" or "Console") then
-        heightScale = playerViewportHeight / DESKTOP_BASE_HEIGHT
-    elseif DeviceUtils.GetDevice() == "Mobile" then
-        heightScale = playerViewportHeight / MOBILE_BASE_HEIGHT
-    else
-        heightScale = playerViewportHeight / DESKTOP_BASE_HEIGHT
-    end
-
-    -- Calculate the new text size
-    local newStrokeSize = math.ceil(baseStrokeSize * heightScale)
-    return newStrokeSize
-end
-
--- Connects a UIStroke's thickness to viewport size changes.
-local function ConnectUIStrokeSizeTranslation(uiStroke: UIStroke, baseThickness: number)
-    -- Checking if the code is running on client.
-    if not RunService:IsClient() then
-        warn("ConnectUIStrokeSizeTranslation is client only!")
-        return
-    end
-
-    -- Verifying parameter types.
-    if typeof(uiStroke) ~= "Instance" or not uiStroke:IsA("UIStroke") then
-        warn("ConnectUIStrokeSizeTranslation requires a valid UIStroke instance.")
-        return
-    end
-
-    -- Set initial thickness based on current viewport.
-    uiStroke.Thickness = TranslateStrokeSize(baseThickness)
-    
-    -- Connect to viewport size changes.
-    workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-        if not uiStroke or not uiStroke.Parent then
-            return
+    if options.SmallLetters then
+        for _, smallLetterCharacter in AVAILABLE_CHARACTERS.SmallLetters do
+            table.insert(characterPool, smallLetterCharacter)
         end
+    end
 
-        uiStroke.Thickness = TranslateStrokeSize(baseThickness)
-    end)
+    if options.Numbers then
+        for _, numberCharacter in AVAILABLE_CHARACTERS.Numbers do
+            table.insert(characterPool, numberCharacter)
+        end
+    end
+
+    if options.Symbols then
+        for _, symbolCharacter in AVAILABLE_CHARACTERS.Symbols do
+            table.insert(characterPool, symbolCharacter)
+        end
+    end
+
+    while string.len(resultString) < length do
+        resultString ..= characterPool[math.random(1, #characterPool)]
+    end
+
+    return resultString
 end
 
+--[=[
+	Generates a random alphanumeric identifier string.
+    The resulting identifier should be checked against existing identifiers for uniqueness.
+
+	### Returns:
+	```luau
+	string -- A random identifier string of default length.
+	```
+]=]
 local function GenerateIdentifier(): string
-    local id = ""
-
-    -- Iterating over each id character.
-    for i: number = 1, ID_LENGTH - 1 do
-        if i % (ID_LENGTH / 3) == 0 then
-            id ..= "-"
-        else
-            id ..= ID_SYMBOLS[math.random(1, #ID_SYMBOLS)]
-        end
-    end
-
-    return id
-end
-
--- Generates a random string based on allowed character sets.
-local function GenerateRandomString(length: number, capitalLetters: boolean, smallLetters: boolean, number: boolean, symbols: boolean): string
-    local chars = {}
-    if capitalLetters then
-        for i = 65, 90 do -- A-Z
-            table.insert(chars, string.char(i))
-        end
-    end
-    if smallLetters then
-        for i = 97, 122 do -- a-z
-            table.insert(chars, string.char(i))
-        end
-    end
-    if number then
-        for i = 48, 57 do -- 0-9
-            table.insert(chars, string.char(i))
-        end
-    end
-    if symbols then
-        local symbolList = {'!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '-', '_', '=', '+', '[', ']', '{', '}', ';', ':', ',', '.', '<', '>', '?', '/'}
-        for _, s in ipairs(symbolList) do
-            table.insert(chars, s)
-        end
-    end
-    if #chars == 0 then
-        return "" -- No character sets selected
-    end
-    local result = ""
-    for i = 1, length do
-        result ..= chars[math.random(1, #chars)]
-    end
-    return result
+    return GenerateRandomString(DEFAULT_ID_LENGTH, {
+        Numbers = true,
+    })
 end
 
 -- Exporting methods.
 TextUtils.GenerateRandomString = GenerateRandomString
 TextUtils.GenerateIdentifier = GenerateIdentifier
-TextUtils.TranslateStrokeSize = TranslateStrokeSize
-TextUtils.ConnectUIStrokeSizeTranslation = ConnectUIStrokeSizeTranslation
 
 return TextUtils

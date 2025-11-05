@@ -152,7 +152,10 @@ end
 local function MergeDictionaries(priorityTable: table, supplyTable: table, options: MergeDictionariesOptions?)
     options = options and MergeDictionaries(options, MergeDictionariesOptionsDefault) or MergeDictionariesOptionsDefault
     
+    -- Merging table values.
     for id: string, value: any in supplyTable do
+		
+		-- If the id is in ignore keys then skip it.
 		if table.find(options.KeysToIgnore, id) then
 			continue
 		end

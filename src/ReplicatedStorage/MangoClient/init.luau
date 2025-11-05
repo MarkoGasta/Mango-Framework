@@ -67,7 +67,7 @@ local function CacheModule(moduleName: string, module: table)
 end
 
 --- Uses a class name to require or return a cached class.
-local function Require(moduleName: string)
+local function Require(moduleName: Types.ModuleNames)
     if moduleCache[moduleName] then
         return moduleCache[moduleName]
     end
@@ -117,6 +117,6 @@ end
 
 --// EXPORTS \\--
 MangoClient.CacheModule = CacheModule
-MangoClient.Require = Require
+MangoClient.Require = Require:: Types.Modules
 
 return MangoClient
