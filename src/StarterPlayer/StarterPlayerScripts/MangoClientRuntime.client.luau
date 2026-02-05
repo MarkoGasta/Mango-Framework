@@ -44,6 +44,7 @@ local CONTROLLER_CONTAINERS = {
 --// MODULES \\--
 
 local MangoClient = require(ReplicatedStorage.MangoClient)
+local SubmoduleUtils = MangoClient.Require("SubmoduleUtils")
 local PublicValues = MangoClient.Require("PublicValues")
 local TableUtils = MangoClient.Require('TableUtils')
 local Logger = MangoClient.Require("Logger")
@@ -133,6 +134,9 @@ if not PublicValues.GetValue("ServerLoaded") then
     LogProgress(`Waiting for the server to load...`)
     PublicValues.WaitForValue("ServerLoaded", 120)
 end
+
+SubmoduleUtils.DefineConstructionMethodName(CONSTRUCTION_METHOD)
+SubmoduleUtils.DefineInitializationMethodName(INITIALIZATION_METHOD)
 
 -- Constructing controllers.
 LogDebug("Constructing controllers...")
