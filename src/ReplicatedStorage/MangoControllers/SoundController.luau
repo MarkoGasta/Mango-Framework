@@ -1,4 +1,3 @@
-local Workspace = game:GetService("Workspace")
 --[[
     Written by MarkoGasta2 @ Studio Blackout
 ]]--
@@ -311,7 +310,7 @@ function SoundController.__Construct()
     SoundSourcePartTemplate.Transparency = 1
     SoundSourcePartTemplate.Anchored = true
     SoundSourcePartTemplate.CanCollide = false
-    SoundSourcePartTemplate.Parent = ReplicatedStorage.Cache
+    SoundSourcePartTemplate.Parent = ReplicatedStorage
 
     SoundEmitterStorage = Instance.new("Folder")
     SoundEmitterStorage.Name = "__SoundEmitterStorage"
