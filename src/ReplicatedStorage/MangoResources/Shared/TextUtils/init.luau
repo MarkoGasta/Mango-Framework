@@ -71,6 +71,10 @@ local TextUtils = {}
 
 --// FUNCTIONS \--
 
+local function LogError(message: string)
+    warn(`[TextUtils] {message}`)
+end
+
 --[=[
 	Generates a random string based on specified character options.
 
@@ -117,6 +121,11 @@ local function GenerateRandomString(length: number, options: RandomStringOptions
         for _, symbolCharacter in AVAILABLE_CHARACTERS.Symbols do
             table.insert(characterPool, symbolCharacter)
         end
+    end
+
+    if #characterPool == 0 then
+        LogError("No character sets selected for random string generation.")
+        return ""
     end
 
     while string.len(resultString) < length do

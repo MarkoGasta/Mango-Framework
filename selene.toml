@@ -2,3 +2,4 @@ std = "roblox"
 
 [lints]
 unused_variable = "allow"
+manual_table_clone = "allow"

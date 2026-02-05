@@ -12,6 +12,8 @@ function GameController.__Construct()
 
     --// MODULES \\--
     local MangoClient = require(ReplicatedStorage:WaitForChild("MangoClient"))
+    local RemoteController = MangoClient.Require("RemoteController")
+    local DataController = MangoClient.Require("DataController")
 
     --// TYPES \\--
 
@@ -28,7 +30,7 @@ function GameController.__Construct()
 
         --- Starts the game loop.
         local function Start()
-            
+            MangoClient.LockModule("RemoteController")
         end
 
         --// RUNTIME \\--

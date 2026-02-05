@@ -1,40 +1,67 @@
--- SERVICES --
+--[[
+-----------------------------------------------------------------------------
+Last Updated - 05. Nov 2025.
+Copyright 2025 MarkoGasta @ Studio Blackout
 
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the“Software”),
+to deal in the Software without restriction, including without
+limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to
+whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+-----------------------------------------------------------------------------
+]]--
+
+--// SERVICES \\--
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 
--- CONSTANTS --
+--// CONFIG \\--
 
--- MODULES --
+--// MODULES \\--
 
--- VARIABLES --
+--// TYPES \\--
 
-local Utils = {}
+--// CONSTANTS \\--
 
--- FUNCTIONS
+--// VARIABLES \\--
 
-function Utils.GetDevice() -- Get players device
-	if (GuiService:IsTenFootInterface()) then
+local DeviceUtils = {}    
+
+--// FUNCTIONS \\--
+
+--[=[
+	Detects the current device type based on input capabilities.
+
+	### Returns:
+	```luau
+	string -- "Console", "Mobile", or "Desktop" based on device detection.
+	```
+]=]
+local function GetDevice(): "Console" | "Mobile" | "Desktop"
+	if GuiService:IsTenFootInterface() then
 		return "Console"
-	elseif (UserInputService.TouchEnabled and not UserInputService.MouseEnabled) then
+	elseif UserInputService.TouchEnabled and not UserInputService.MouseEnabled then
 		return "Mobile"
 	else
 		return "Desktop"
 	end
 end
 
-function Utils.IsMobile() -- Returns true if player is on mobile
-	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled and not UserInputService.MouseEnabled then
-		return true
-	end
-	return false
-end
+--// RUNTIME \\--
 
-function Utils.IsPC() -- Returns true if player is on pc
-	if not UserInputService.TouchEnabled and UserInputService.KeyboardEnabled and UserInputService.MouseEnabled then
-		return true
-	end
-	return false
-end
+--// EXPORTS \\--
+DeviceUtils.GetDevice = GetDevice
 
-return Utils
+return DeviceUtils

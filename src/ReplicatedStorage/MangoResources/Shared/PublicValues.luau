@@ -159,6 +159,26 @@ local function GetValue(valueName: string)
 end
 
 --[=[
+	Destroys a public value by name.
+
+	### Parameters:
+	```luau
+	valueName: string -- The name of the value to destroy.
+	```
+]=]
+local function DestroyValue(valueName: string)
+	if not valueName then
+		LogError(`Argument "valueName" missing`)
+		return
+	end
+
+	local valueInstance = GetValueInstance(valueName)
+	if valueInstance then
+		valueInstance:Destroy()
+	end
+end
+
+--[=[
 	Yields until a public value is set or the timeout is reached.
 
 	### Parameters:
@@ -255,5 +275,6 @@ PublicValues.GetValueChangedSignal = GetValueChangedSignal
 PublicValues.WaitForValue = WaitForValue
 PublicValues.GetValue = GetValue
 PublicValues.SetValue = SetValue
+PublicValues.DestroyValue = DestroyValue
 
 return PublicValues

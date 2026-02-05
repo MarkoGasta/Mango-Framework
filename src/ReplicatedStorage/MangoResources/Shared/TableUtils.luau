@@ -35,10 +35,15 @@ type MergeDictionariesOptions = {
 	ShallowMerge: boolean?
 }
 
+type MergeArraysOptions = {
+	AllowDuplicates: boolean?
+}
+
 type CopyTableOptions = {
 	KeysToIgnore: {string} | {},
 	RemoveCyclic: boolean?,
 	ShallowCopy: boolean?,
+	ExcludePrivateKeys: boolean?
 }
 
 --// CONSTANTS \\--
@@ -46,12 +51,12 @@ type CopyTableOptions = {
 local TableUtils = {
 	_Enum = {
 		SortingFunctions = {
-			Ascending = {
-				Name = "Ascending",
+			ASCENDING = {
+				Name = "ASCENDING",
 				Value = function(a, b) return a < b end,
 			},
-			Descending = {
-				Name = "Descending",
+			DESCENDING = {
+				Name = "DESCENDING",
 				Value = function(a, b) return a > b end,
 			},
 		}
@@ -64,10 +69,15 @@ local MergeDictionariesOptionsDefault: MergeDictionariesOptions = {
 	ShallowMerge = false
 }
 
+local MergeArraysOptionsDefault: MergeArraysOptions = {
+	AllowDuplicates = true
+}
+
 local CopyTableOptionsDefaults: CopyTableOptions = {
 	KeysToIgnore = {},
 	RemoveCyclic = false,
 	ShallowCopy = false,
+	ExcludePrivateKeys = true,
 }
 
 --// VARIABLES \\--
@@ -190,8 +200,14 @@ end
         table -- The updated destination table.
         ```
 ]=]
-local function MergeArrays(priorityTable: table, supplyTable: table)
+local function MergeArrays(priorityTable: table, supplyTable: table, options: MergeArraysOptions?)
+    options = options and MergeDictionaries(options, MergeArraysOptionsDefault) or MergeArraysOptionsDefault
+
     for _, value: any in supplyTable do
+		if not options.AllowDuplicates and table.find(priorityTable, value) then
+			continue
+		end
+		
         table.insert(priorityTable, value)
     end
 
@@ -268,6 +284,28 @@ local function DictionaryToArray(dictionary: table)
 	local array = {}
 	for _, value in dictionary do
 		table.insert(array, value)
+	end
+
+	return array
+end
+
+--[=[
+        Converts a dictionary's keys into an array.
+
+        ### Parameters:
+        ```luau
+        dictionary: table -- The dictionary to convert.
+        ```
+
+        ### Returns:
+        ```luau
+        table -- An array containing the dictionary's keys.
+        ```
+]=]
+local function DictionaryKeysToArray(dictionary: table)
+	local array = {}
+	for key in dictionary do
+		table.insert(array, key)
 	end
 
 	return array
@@ -440,7 +478,7 @@ local function ArrayExceptions(...: {any}): {any}
 end
 
 --[=[
-        Sums all numeric values in an array.
+        Sums all numeric values in a table.
 
         ### Parameters:
         ```luau
@@ -452,13 +490,13 @@ end
         number -- The total sum of the array values.
         ```
 ]=]
-local function GetArrayValueSum(array: {number})
-	if #array <= 0 then
+local function GetTableValueSum(table: {number})
+	if GetTableLength(table) <= 0 then
 		return 0
 	end
 
 	local sum = 0
-	for _, value in array do
+	for _, value in table do
 		sum += value
 	end
 
@@ -479,15 +517,66 @@ end
         table -- The sorted array.
         ```
 ]=]
-local function SortArray(array: table, methodName: typeof(TableUtils._Enum.SortingFunctions)): table
-	local sortingFunction = TableUtils._Enum.SortingFunctions[methodName.Name]
+local function SortArray(array: table, enumMethod: typeof(TableUtils._Enum.SortingFunctions)): table
+	local sortingFunction = TableUtils._Enum.SortingFunctions[enumMethod.Name]
 	if not sortingFunction then
-		LogWarning(`Sorting method {methodName} is not valid`)
+		LogWarning(`Sorting method {enumMethod} is not valid`)
 		return array
 	end
 
 	table.sort(array, sortingFunction.Value)
 	return array
+end
+
+--[=[
+        Sorts an array of dictionaries based on a specified field and sorting method.
+
+        ### Parameters:
+        ```luau
+        array: table -- The array of dictionaries to sort.
+        sortField: string -- The field in the dictionaries to sort by.
+        enumMethod: typeof(TableUtils._Enum.SortingFunctions) -- The sorting method to use (e.g., ASCENDING or DESCENDING).
+        ```
+
+        ### Returns:
+        ```luau
+        table -- The sorted array of dictionaries.
+        ```
+]=]
+local function SortArrayOfDictionaries(array: table, sortField: string, enumMethod: typeof(TableUtils._Enum.SortingFunctions)): table
+	local sortingFunction = TableUtils._Enum.SortingFunctions[enumMethod.Name]
+	if not sortingFunction then
+		LogWarning(`Sorting method {enumMethod} is not valid`)
+		return array
+	end
+
+	table.sort(array, function(a: table, b: table)
+		return sortingFunction.Value(a[sortField], b[sortField])
+	end)
+
+	return array
+end
+
+--[=[
+		Reverses the order of elements in an array and returns a new reversed array.
+
+		### Parameters:
+		```luau
+		array: table -- The array to reverse.
+		```
+
+		### Returns:
+		```luau
+		table -- The reversed array.
+		```
+]=]
+local function ReverseArray(array: table): table
+	local reversedArray = {}
+	for arrayIndex = #array, 1, -1 do
+		table.insert(reversedArray, array[arrayIndex])
+	end
+
+	return reversedArray
 end
 
 --[=[
@@ -563,6 +652,10 @@ local function CopyTable(originalTable: table, options: CopyTableOptions?)
 			continue
 		end
 
+		if options.ExcludePrivateKeys and typeof(key) == "string" and string.sub(key, 1, 1) == "_" then
+			continue
+		end
+
 		if typeof(value) == "table" then
 			if options.ShallowCopy then
 				tableCopy[key] = {}
@@ -581,6 +674,36 @@ local function CopyTable(originalTable: table, options: CopyTableOptions?)
 	return tableCopy
 end
 
+--[=[
+		Checks if all values in a table are identical.
+
+		### Parameters:
+		```luau
+		table: table -- The table to check.
+		```
+
+		### Returns:
+		```luau
+		boolean -- True if all values match, false otherwise.
+		```
+]=]
+local function CheckAreAllTableValuesMatching(table: table): boolean
+	local firstValue: any
+
+	for _, value in table do
+		if firstValue == nil then
+			firstValue = value
+			continue
+		end
+
+		if value ~= firstValue then
+			return false
+		end
+	end
+
+	return true
+end
+
 --// EXPORTS \\--
 TableUtils.GetTableLength = GetTableLength
 TableUtils.GetTableType = GetTableType
@@ -589,13 +712,17 @@ TableUtils.MergeArrays = MergeArrays
 TableUtils.GetRandomTableKey = GetRandomTableKey
 TableUtils.FindValueInDictionary = FindValueInDictionary
 TableUtils.DictionaryToArray = DictionaryToArray
+TableUtils.DictionaryKeysToArray = DictionaryKeysToArray
 TableUtils.InvertDictionary = InvertDictionary
 TableUtils.DictionaryIntersection = DictionaryIntersection
 TableUtils.ArrayIntersection = ArrayIntersection
 TableUtils.DictionaryExceptions = DictionaryExceptions
 TableUtils.ArrayExceptions = ArrayExceptions
-TableUtils.GetArrayValueSum = GetArrayValueSum
+TableUtils.GetTableValueSum = GetTableValueSum
 TableUtils.SortArray = SortArray
+TableUtils.SortArrayOfDictionaries = SortArrayOfDictionaries
+TableUtils.ReverseArray = ReverseArray
 TableUtils.CopyTable = CopyTable
+TableUtils.CheckAreAllTableValuesMatching = CheckAreAllTableValuesMatching
 
 return TableUtils

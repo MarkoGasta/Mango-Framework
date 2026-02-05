@@ -103,8 +103,8 @@ end
 
 -- Adding global values.
 MangoClient.Global.__ConstructedFlag = CONSTRUCTED_FLAG
-MangoClient.Global.__ConstructionMethod = CONSTRUCTION_METHOD
-MangoClient.Global.__InitializationMethod = INITIALIZATION_METHOD
+MangoClient.Global.ConstructionMethod = CONSTRUCTION_METHOD
+MangoClient.Global.InitializationMethod = INITIALIZATION_METHOD
 
 -- Initiating client runtime.
 LogProgress(`Initiating client runtime...`)

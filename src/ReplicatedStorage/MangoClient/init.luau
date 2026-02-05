@@ -36,6 +36,7 @@ local MODULE_CONTAINERS = {
     ReplicatedStorage:WaitForChild("Resources"),
     ReplicatedStorage:WaitForChild("MangoControllers"),
     ReplicatedStorage:WaitForChild("MangoResources"),
+    ReplicatedStorage:WaitForChild("Packages"),
 }
 
 --// MODULES \\--
@@ -50,24 +51,66 @@ local MangoClient = {
 
 --// VARIABLES \\--
 local moduleCache = {}
+local lockedModules = {}
 
 --// FUNCTIONS \\--
 
---- Wrapper for logging error messages.
---- @param message string The message to log.
+--[=[
+	Logs an error message to the console with a MangoClient prefix.
+
+	### Parameters:
+	```luau
+	message: string -- The error message to log.
+	```
+]=]
 local function LogError(message: string)
     warn(`[MangoClient] {message}`)
 end
 
---- Caches a module required externally.
---- @param moduleName string The name of the module.
---- @param module table The module to cache.
+--[=[
+	Caches a module in the internal module cache.
+
+	### Parameters:
+	```luau
+	moduleName: string -- The name of the module to cache.
+	module: table -- The module table to cache.
+	```
+]=]
 local function CacheModule(moduleName: string, module: table)
     moduleCache[moduleName] = module
 end
 
---- Uses a class name to require or return a cached class.
+--[=[
+	Locks a module to prevent it from being required.
+
+	### Parameters:
+	```luau
+	moduleName: string -- The name of the module to lock.
+	```
+]=]
+local function LockModule(moduleName: string)
+    lockedModules[moduleName] = true
+end
+
+--[=[
+	Requires a module from specified containers with caching and construction logic.
+
+	### Parameters:
+	```luau
+	moduleName: Types.ModuleNames -- The name of the module to require.
+	```
+
+	### Returns:
+	```luau
+	any -- The required module, or nil if not found or locked.
+	```
+]=]
 local function Require(moduleName: Types.ModuleNames)
+    if lockedModules[moduleName] then
+        LogError(`Module '{moduleName}' is locked and cannot be required`)
+        return nil
+    end
+
     if moduleCache[moduleName] then
         return moduleCache[moduleName]
     end
@@ -92,7 +135,7 @@ local function Require(moduleName: Types.ModuleNames)
 
             -- If the module being required is being called by a construction method, pre-construct the module if it has one.
             local callingFunction = debug.info(2, "n")
-            local constructionMethod = MangoClient.Global.__ConstructionMethod
+            local constructionMethod = MangoClient.Global.ConstructionMethod
             local isCallingFunctionConstructor = callingFunction == constructionMethod
             local isRequiredModuleTable = typeof(requiredModule) == "table"
             if isRequiredModuleTable then
@@ -117,6 +160,7 @@ end
 
 --// EXPORTS \\--
 MangoClient.CacheModule = CacheModule
+MangoClient.LockModule = LockModule
 MangoClient.Require = Require:: Types.Modules
 
 return MangoClient

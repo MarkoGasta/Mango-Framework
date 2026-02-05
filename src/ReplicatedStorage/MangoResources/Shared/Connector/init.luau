@@ -23,11 +23,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ]]
 
---// CONFIG \\--
-
-local REDUNDANCY_CHECK_INTERVAL = 180
-
 --// SERVICES \\--
+
+--// CONFIG \\--
+local REDUNDANCY_CHECK_INTERVAL = 180
 
 --// MODULES \\--
 
@@ -36,13 +35,34 @@ local TextUtils = require(script.TextUtils)
 
 --// TYPES \\--
 
-type SignalConnection = {}
+type ConnectionInstance = {
+    __Callback: (any...) -> (any...),
+    _AdditionalArguments: table,
+    _Options: ConnectOptions,
+    Id: string,
+}
+type ConnectOptions = {
+    Priority: number?,
+    Condition: any?,
+    OverrideExisting: boolean?,
+    IgnoreSignalArguments: boolean?,
+}
+
+type Connect<sA, aA> = (RBXScriptSignal, (sA, aA) -> (any...), aA...) -> ConnectionInstance |
+    (RBXScriptSignal, (sA, aA) -> (any...), ConnectOptions?, aA...) -> ConnectionInstance
 
 --// CONSTANTS \\--
 
 local Enums = {
     DefaultPriority = 10,
     GameStartPriority = 11,
+}
+
+local ConnectOptionsDefaults: ConnectOptions = {
+    Priority = Enums.DefaultPriority,
+    Condition = nil,
+    OverrideExisting = false,
+    IgnoreSignalArguments = false,
 }
 
 --// VARIABLES \\--
@@ -53,219 +73,174 @@ local Connector = {
 
 local connectionInstances = {}
 local signalConnections = {}
-local lastRedundancyCheckTime = os.clock()
 
 --// FUNCTIONS \\--
 
--- Disconnects a connection instance that has been passed to it.
-function Connector.Disconnect(connectionInstance: SignalConnection)
-
-    -- Removing connection instance from connection instances table.
-    for index, existingConnectionInstance: SignalConnection in connectionInstances do
-        if existingConnectionInstance == connectionInstance then
-            connectionInstances[index] = nil
-            break
+local function GetSignalConnectionWithSignal(signal: RBXScriptSignal)
+    for _, signalConnection: table in signalConnections do
+        if signalConnection.__Signal == signal then
+            return signalConnection
         end
     end
 
-    -- Removing signal connection if there are no more connection instances.
-    local sameSignalConnectionExists = false
-    for _, connectionInstanceIndex: SignalConnection in connectionInstances do
-        if connectionInstanceIndex._Signal == connectionInstance._Signal then
-            sameSignalConnectionExists = true
-            break
-        end
+    return nil
+end
+
+local function CreateSignalConnection(signal: RBXScriptSignal)
+    local existingSignalConnectionId = TableUtils.FindValueInDictionary(signalConnections, signal)
+    if existingSignalConnectionId then
+        local existingSignalConnection = signalConnections[existingSignalConnectionId]
+        existingSignalConnection._Connection:Disconnect()
+        signalConnections[existingSignalConnectionId] = nil
     end
 
-    if not sameSignalConnectionExists then
-        local signalConnection = signalConnections[connectionInstance._SignalConnectionId]
-        if signalConnection then
-            if signalConnection._Connection and signalConnection._Connection.Connected then
-                signalConnection._Connection:Disconnect()
+    local signalConnectionId: string
+    while not signalConnectionId or signalConnections[signalConnectionId] do
+        signalConnectionId = TextUtils.GenerateIdentifier()
+    end
+    
+    local newSignalConnection = {
+        __Signal = signal,
+        _connectionInstances = {},
+        Id = signalConnectionId,
+    }
+
+    signalConnections[signalConnectionId] = newSignalConnection
+    newSignalConnection.__Connection = signal:Connect(function(...)
+        local signalArguments = {...}
+
+        -- Calling connection instance callbacks.
+        for _, connectionInstanceId: table in newSignalConnection._connectionInstances do
+            local connectionInstance = connectionInstances[connectionInstanceId]
+            if not connectionInstance then
+                continue
             end
-            
-            signalConnections[connectionInstance._SignalConnectionId] = nil
+
+            -- Checking if the first argument matches condition criteria.
+            if connectionInstance._Options.Condition and signalArguments[1] ~= connectionInstance._Options.Condition then
+                continue
+            end
+
+            -- Checking the number of signal arguments, if it's 0 then calling without them.
+            if #signalArguments <= 0 or connectionInstance._Options.IgnoreSignalArguments then
+                task.spawn(function()
+                    xpcall(connectionInstance.__Callback, function(errorMessage: string)
+                        warn(debug.traceback(errorMessage, 2))
+                    end, table.unpack(connectionInstance._AdditionalArguments))
+                end)
+            else
+                -- Concating argument tables.
+                local combinedArguments = TableUtils.MergeArrays(signalArguments, connectionInstance._AdditionalArguments)
+                task.spawn(function()
+                    xpcall(connectionInstance.__Callback, function(errorMessage: string)
+                        warn(debug.traceback(errorMessage, 2))
+                    end, table.unpack(combinedArguments))
+                end)
+            end
         end
+    end)
+
+    return newSignalConnection
+end
+
+function Connector.Disconnect(connectionInstance: ConnectionInstance)
+    local signalConnection = signalConnections[connectionInstance._SignalConnectionId]
+    if not signalConnection then
+        return
+    end
+
+    local signalConnectionConnectionInstances = signalConnection._connectionInstances
+    local connectionInstanceIndex = table.find(signalConnectionConnectionInstances, connectionInstance.Id)
+    table.remove(signalConnectionConnectionInstances, connectionInstanceIndex)
+    connectionInstance.connected = false
+    connectionInstances[connectionInstance.Id] = nil
+
+    if #signalConnectionConnectionInstances <= 0 then
+        signalConnection.__Connection:Disconnect()
+        signalConnections[signalConnection.Id] = nil
     end
 end
 
--- Private connect method, connects a script signal if it already isn't and calls it's callback functions.
-local function Connect(signal: RBXScriptSignal, callbackFunction: () -> (), callbackArguments: table): SignalConnection
+function Connector.Connect<sA, aA>(signal: RBXScriptSignal, callbackFunction: (sA, aA...) -> (any), options: ConnectOptions?, ...: aA...)
+    options = options and TableUtils.MergeDictionaries(options, ConnectOptionsDefaults) or ConnectOptionsDefaults
 
-    -- Defining connection instance properties.
-    local connectionInstance = {
-        _Signal = signal,
-        _Callback = callbackFunction,
-        _CallbackArgs = callbackArguments,
-        Priority = Enums.DefaultPriority,
-        Condition = nil
-    }
-
-    -- Caching connection instance.
-    local connectionInstanceId
+    local connectionInstanceId: string
     while not connectionInstanceId or connectionInstances[connectionInstanceId] do
         connectionInstanceId = TextUtils.GenerateIdentifier()
     end
+
+    local connectionInstance = {
+        __Callback = callbackFunction,
+        _AdditionalArguments = {...},
+        _Options = options,
+        Id = connectionInstanceId,
+        connected = true,
+    }
+
+    connectionInstance.Disconnect = function()
+        Connector.Disconnect(connectionInstance)
+    end
     
     connectionInstances[connectionInstanceId] = connectionInstance
-
-    -- Getting signal connection.
-    local signalConnectionExists = false
-    for connectionId: string, signalConnection: table in signalConnections do
-        if signalConnection._Signal == signal then
-            connectionInstance._SignalConnectionId = connectionId
-            signalConnectionExists = true
-            break
-        end
-    end
     
-    -- Checking if a connection for this signal already exists.
-    if not signalConnectionExists then
-
-        -- Generating unique identifier for signal connection.
-        local randomId: string
-        while not randomId or signalConnections[randomId] do
-            randomId = TextUtils.GenerateIdentifier()
-        end
-
-        -- Saving signal connection id to connection instance.
-        connectionInstance._SignalConnectionId = randomId
-
-        -- Creating a table for identifying signal connections.
-        signalConnections[randomId] = {
-            _Signal = signal,
-            _Connection = signal:Connect(function(...)
-                local signalArguments = {...}
-
-                local timeSinceInterval = os.clock() - lastRedundancyCheckTime
-                if timeSinceInterval > REDUNDANCY_CHECK_INTERVAL then
-                    lastRedundancyCheckTime = os.clock()
-
-                    local cleanedConnectionInstances = {}
-                    for index, existingConnectionInstance: SignalConnection in connectionInstances do
-                        local signalConnection = signalConnections[existingConnectionInstance._SignalConnectionId]
-                        if signalConnection and signalConnection._Connection.Connected then
-                            cleanedConnectionInstances[index] = existingConnectionInstance
-                        end
-                    end
-                    
-                    connectionInstances = cleanedConnectionInstances
-                end
-
-                -- Sorting connection instances.
-                local connectionInstancesIndexes = TableUtils.GetIndexes(connectionInstances)
-                table.sort(connectionInstancesIndexes, function(connectionInstanceIndex1: SignalConnection, connectionInstanceIndex2: SignalConnection)
-                    local connectionInstance1 = connectionInstances[connectionInstanceIndex1]
-                    local connectionInstance2 = connectionInstances[connectionInstanceIndex2]
-
-                    -- Getting callback priority.
-                    local callbackPriority1 = connectionInstance1.Priority
-                    local callbackPriority2 = connectionInstance2.Priority
-
-                    return callbackPriority1 < callbackPriority2
-                end)
-
-                for _, connectionInstanceIndex: table in connectionInstancesIndexes do
-                    local connectionInstance = connectionInstances[connectionInstanceIndex]
-                    if not connectionInstance then
-                        continue
-                    end
-
-                    -- Checking if connection instance signal matches this signal.
-                    if connectionInstance._Signal ~= signal then
-                        continue
-                    end
-
-                    -- Checking if the first argument matches condition criteria.
-                    if connectionInstance.Condition and signalArguments[1] ~= connectionInstance.Condition then
-                        continue
-                    end
-
-                    -- Checking the number of signal arguments, if it's 0 then calling without them.
-                    if #signalArguments <= 0 or connectionInstance.IgnoreActualArguments then
-                        task.spawn(xpcall, connectionInstance._Callback, warn, table.unpack(connectionInstance._CallbackArgs))
-                    else
-                        -- Concating argument tables.
-                        local combinedArguments = TableUtils.MergeArrays(signalArguments, connectionInstance._CallbackArgs)
-                        task.spawn(xpcall, connectionInstance._Callback, warn, table.unpack(combinedArguments))
-                    end
-                end
-            end)
-        }
+    local signalConnection = GetSignalConnectionWithSignal(signal)
+    if not signalConnection or options.OverrideExisting then
+        signalConnection = CreateSignalConnection(signal)
     end
 
+    connectionInstance._SignalConnectionId = signalConnection.Id
+    table.insert(signalConnection._connectionInstances, connectionInstanceId)
+    table.sort(signalConnection._connectionInstances, function(connectionInstanceId1: ConnectionInstance, connectionInstanceId2: ConnectionInstance)
+        local connectionInstance1 = connectionInstances[connectionInstanceId1]
+        local connectionInstance2 = connectionInstances[connectionInstanceId2]
+        local callbackPriority1 = connectionInstance1._Options.Priority
+        local callbackPriority2 = connectionInstance2._Options.Priority
+        return callbackPriority1 < callbackPriority2
+    end)
+
     return connectionInstance
 end
 
--- Used to connect a `RBXScriptSignal` to a callback function, like a standard :Connect method. Added
--- functionality to pass additional `arguments` to the callback function.
--- Any additional arguments are passed to the callback function.
---- @param signal RBXScriptSignal Any script signal (ex. MouseButton1Clicked, Triggered, Destroyed)
---- @param callbackFunction function Function that is connected to the script signal.
---- @return table SignalConnection Instance of the connection.
-Connector.Connect = function<sA, cA>(signal: RBXScriptSignal, callbackFunction: (sA, cA) -> (any), ...: cA...): SignalConnection
-    local connectionInstance = Connect(signal, callbackFunction, {...})
+function Connector.Once<sA, aA>(signal: RBXScriptSignal, callbackFunction: (sA, aA...) -> (any), options: ConnectOptions, ...: aA...)
+    options = options and TableUtils.MergeDictionaries(options, ConnectOptionsDefaults) or ConnectOptionsDefaults
+
+    local connectionInstance: ConnectionInstance
+    connectionInstance = Connector.Connect(signal, function(...)
+        Connector.Disconnect(connectionInstance)
+        return callbackFunction(...)
+    end, options, ...)
+
     return connectionInstance
 end
 
--- Connects a `RBXScriptSignal` to a callback function and overrides any existing connection for
--- that signal. Works like a standard .Connect method, but removes any existing connections for that signal.
--- Any additional arguments are passed to the callback function.
---- @param signal RBXScriptSignal Any script signal (ex. MouseButton1Clicked, Triggered, Destroyed)
---- @param callbackFunction function Function that is connected to the script signal.
---- @return table SignalConnection Instance of the connection.
-Connector.ConnectOverride = function<sA, cA>(signal: RBXScriptSignal, callbackFunction: (sA, cA) -> (any), ...: cA...): SignalConnection
-    
-    -- Iterating over connection instances and disconnecting them if they are the same signal.
-    for _, connectionInstance: SignalConnection in connectionInstances do
-        if connectionInstance._Signal == signal then
-            Connector.Disconnect(connectionInstance)
+--// RUNTIME \\--
+
+-- Deffering redundancy check loop.
+task.defer(function()
+    while true do
+        task.wait(REDUNDANCY_CHECK_INTERVAL)
+
+        -- Cleaning up disconnected signal connection instances.
+        local disconnectedSignals = {}
+        for signalConnectionId: string, signalConnection: table in signalConnections do
+            if typeof(signalConnection.__Connection) == "RBXScriptConnection" and signalConnection.__Connection.Connected then
+                continue
+            elseif typeof(signalConnection.__Connection) ~= "RBXScriptConnection" then
+                continue
+            end
+
+            for _, connectionInstanceId: table in signalConnection._connectionInstances do
+                connectionInstances[connectionInstanceId] = nil
+            end
+
+            table.insert(disconnectedSignals, signalConnectionId)
+        end
+
+        -- Removing disconnected signals.
+        for _, disconnectedSignalId: string in disconnectedSignals do
+            signalConnections[disconnectedSignalId] = nil
         end
     end
-    
-    -- Connecting the signal again.
-    local connectionInstance = Connect(signal, callbackFunction, {...})
-    return connectionInstance
-end
-
--- Connects a `RBXScriptSignal` to a callback function and sets the priority of the connection.
--- Connections with lower priority are called first.
--- Use the default priority `Connector.Enums.DefaultPriority` for reference.
--- Any additional arguments are passed to the callback function.
---- @param signal RBXScriptSignal Any script signal (ex. MouseButton1Clicked, Triggered, Destroyed)
---- @param priority number Priority of the connection. Lower numbers are called first.
---- @param callbackFunction function Function that is connected to the script signal.
---- @return table SignalConnection Instance of the connection.
-Connector.ConnectWithPriority = function<sA, cA>(signal: RBXScriptSignal, priority: number, callbackFunction: (sA, cA) -> (any), ...: cA...): SignalConnection
-    local connectionInstance = Connect(signal, callbackFunction, {...})
-    connectionInstance.Priority = priority
-    return connectionInstance
-end
-
--- Connects a `RBXScriptSignal` to a callback function and sets the condition for the connection firing.
--- The connection will only fire if the first argument matches the condition criteria.
--- Any additional arguments are passed to the callback function.
---- @param signal RBXScriptSignal Any script signal (ex. MouseButton1Clicked, Triggered, Destroyed)
---- @param conditionCriteria any Condition criteria for the connection to fire.
---- @param callbackFunction function Function that is connected to the script signal.
---- @return table SignalConnection Instance of the connection.
-Connector.ConnectArgumentCondition = function<sA, cA>(signal: RBXScriptSignal, conditionCriteria: any, callbackFunction: (sA, cA) -> (any), ...: cA...): SignalConnection
-    local connectionInstance = Connect(signal, callbackFunction, {...})
-    connectionInstance.Condition = conditionCriteria
-    return connectionInstance
-end
-
--- Connects a `RBXScriptSignal` to a callback function and ignores any arguments passed by the signal.
--- Only the additional arguments passed to this function will be passed to the callback function.
--- Any additional arguments are passed to the callback function.
---- @param signal RBXScriptSignal Any script signal (ex. MouseButton1Clicked, Triggered, Destroyed)
---- @param callbackFunction function Function that is connected to the script signal.
---- @return table SignalConnection Instance of the connection.
-Connector.ConnectIgnoreArguments = function<sA, cA>(signal: RBXScriptSignal, callbackFunction: (sA, cA) -> (any), ...: cA...): SignalConnection
-    local connectionInstance = Connect(signal, callbackFunction, {...})
-    connectionInstance.IgnoreActualArguments = true
-    return connectionInstance
-end
-
+end)
 
 return Connector

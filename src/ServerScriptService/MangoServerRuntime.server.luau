@@ -27,7 +27,7 @@ IN THE SOFTWARE.
 local ServerStorage = game:GetService("ServerStorage")
 
 --// CONFIG \\--
-local DEBUG_LOGGING = true
+local DEBUG_LOGGING = false
 local PROGRES_LOGGING = true
 local GAME_SERVICE_REQUIRED = true
 local CONSTRUCTED_FLAG = "__IsConstructed"
@@ -98,9 +98,6 @@ end
 MangoServer.Global.__ConstructedFlag = CONSTRUCTED_FLAG
 MangoServer.Global.__ConstructionMethod = CONSTRUCTION_METHOD
 MangoServer.Global.__InitializationMethod = INITIALIZATION_METHOD
-
--- Creating server loaded shared value.
-PublicValues.SetValue("PlayersWithLoadedData", {})
 
 -- Getting services from all destinations.
 LogProgress(`Initiating server runtime...`)

@@ -38,6 +38,7 @@ local MODULE_CONTAINERS = {
     ServerStorage:WaitForChild("MangoServices"),
     ServerStorage:WaitForChild("MangoResources"),
 	ReplicatedStorage:WaitForChild("Settings"),
+    ReplicatedStorage:WaitForChild("Packages"),
 	ReplicatedStorage:WaitForChild("Resources"):WaitForChild("Shared"),
 	ReplicatedStorage:WaitForChild("MangoResources"):WaitForChild("Shared"),
 }
@@ -51,7 +52,8 @@ local Types = require(script.Types)
 --// CONSTANTS \\--
 
 local MangoServer = {
-    Global = {} :: {string: any}
+    Global = {},
+    PlayerCache = {},
 }
 
 --// VARIABLES \\--
@@ -60,20 +62,44 @@ local moduleCache = {}
 
 --// FUNCTIONS \\--
 
---- Wrapper for logging error messages.
---- @param message string The message to log.
+--[=[
+	Logs an error message to the console with a MangoServer prefix.
+
+	### Parameters:
+	```luau
+	message: string -- The error message to log.
+	```
+]=]
 local function LogError(message: string)
-    warn(`[MangoClient] {message}`)
+    warn(`[MangoClient] {message}\nStack trace:\n{debug.traceback()}`)
 end
 
---- Caches a module required externally.
---- @param moduleName string The name of the module.
---- @param module table The module to cache.
+--[=[
+	Caches a module in the internal module cache.
+
+	### Parameters:
+	```luau
+	moduleName: string -- The name of the module to cache.
+	module: table -- The module table to cache.
+	```
+]=]
 local function CacheModule(moduleName: string, module: table)
     moduleCache[moduleName] = module
 end
 
---- Uses a class name to require or return a cached class.
+--[=[
+	Requires a module from specified containers with caching and construction logic.
+
+	### Parameters:
+	```luau
+	moduleName: Types.ModuleNames -- The name of the module to require.
+	```
+
+	### Returns:
+	```luau
+	any -- The required module, or nil if not found.
+	```
+]=]
 local function Require(moduleName: Types.ModuleNames)
     if moduleCache[moduleName] then
         return moduleCache[moduleName]
@@ -121,52 +147,58 @@ local function Require(moduleName: Types.ModuleNames)
     LogError(`Module "{moduleName}" not found in specified containers, waited {MODULE_WAIT_TIMEOUT} seconds!`)
 end
 
--- Returns the players cache.
-local function GetPlayerCache(player: Player)
-    
-    -- Getting modules and data.
-    local WaitFor = Require("WaitFor")
-    local success: boolean, playerCache: table = WaitFor.Custom(function()
-        return MangoServer.Global.PlayerCache[player]
-    end):timeout(5):await()
+--[=[
+	Retrieves a cached value for a specific player.
 
-    -- Checking if successfully got player cache.
-    if not success then
-        warn(`Failed to get player cache for {player}`)
+	### Parameters:
+	```luau
+	player: Player -- The player whose cache to access.
+	key: string -- The key of the cached value.
+	```
+
+	### Returns:
+	```luau
+	any -- The cached value, or nil if not found.
+	```
+]=]
+local function GetCacheField(player: Player, key: string)
+	local playerCache = MangoServer.PlayerCache[player]
+    if not playerCache then
+        LogError(`Player cache for player '{player.Name}' does not exist!`)
         return
     end
 
-    return playerCache
-end
-
--- Gets the value of a specific key in a players cache.
-local function GetPlayerCacheKeyValue(player: Player, key: string)
-
-    -- Getting cache key value.
-	local playerCache = GetPlayerCache(player)
     return playerCache[key]
 end
 
--- Sets the value of a specific key in a players cache.
-local function SetPlayerCacheKeyValue(player: Player, key: string, value: any)
+--[=[
+	Sets a cached value for a specific player.
 
-    -- Writing value to key in cache.
-    local playerCache = GetPlayerCache(player)
+	### Parameters:
+	```luau
+	player: Player -- The player whose cache to modify.
+	key: string -- The key to set.
+	value: any -- The value to cache.
+	```
+]=]
+local function SetCacheField(player: Player, key: string, value: any)
+    local playerCache = MangoServer.PlayerCache[player]
+    if not playerCache then
+        LogError(`Player cache for player '{player.Name}' does not exist!`)
+        return
+    end
+
     playerCache[key] = value
 end
 
 -- Handles player being added to the game.
 local function PlayerAdded(player: Player)
-
-    -- Creating player cache.
-    MangoServer.Global.PlayerCache[player] = {}
+    MangoServer.PlayerCache[player] = {}
 end
 
 -- Handles player leaving the game.
 local function PlayerRemoving(player: Player)
-    
-    -- Destroying player cache.
-    MangoServer.Global.PlayerCache[player] = nil
+    MangoServer.PlayerCache[player] = nil
 end
 
 --// RUNTIME \\--
@@ -175,12 +207,16 @@ for _, player: Player in Players:GetPlayers() do
 end
 
 local Connector = Require("Connector")
--- Connector.ConnectWithPriority(Players.PlayerAdded, Connector.Enum.DefaultPriority - 10, PlayerAdded)
--- Connector.ConnectWithPriority(Players.PlayerRemoving, Connector.Enum.DefaultPriority + 10, PlayerRemoving)
+Connector.Connect(Players.PlayerAdded, PlayerAdded, {
+    Priority = Connector.Enum.DefaultPriority - 10,
+})
+Connector.Connect(Players.PlayerRemoving, PlayerRemoving, {
+    Priority = Connector.Enum.DefaultPriority + 10,
+})
 
 --// EXPORTS \\--
-MangoServer.GetPlayerCacheKeyValue = GetPlayerCacheKeyValue
-MangoServer.SetPlayerCacheKeyValue = SetPlayerCacheKeyValue
+MangoServer.GetCacheField = GetCacheField
+MangoServer.SetCacheField = SetCacheField
 MangoServer.CacheModule = CacheModule
 MangoServer.Require = Require :: Types.Modules
 
