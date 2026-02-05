@@ -40,10 +40,11 @@ local SERVICE_CONTAINERS = {
 
 --// MODULES \\--
 local MangoServer = require(ServerStorage:WaitForChild("MangoServer"))
-local RuntimeSettings = MangoServer.Require('RuntimeSettings')
+local SubmoduleUtils = MangoServer.Require("SubmoduleUtils")
 local PublicValues = MangoServer.Require("PublicValues")
 local TableUtils = MangoServer.Require('TableUtils')
 local Logger = MangoServer.Require("Logger")
+local RuntimeSettings = MangoServer.Require('RuntimeSettings')
 
 --// TYPES \\--
 
@@ -115,7 +116,9 @@ table.sort(services, function(service1: ModuleScript, service2: ModuleScript)
     return service1Priority < service2Priority
 end)
 
--- Constructing controllers.
+SubmoduleUtils.DefineConstructionMethodName(CONSTRUCTION_METHOD)
+SubmoduleUtils.DefineInitializationMethodName(INITIALIZATION_METHOD)
+
 -- Constructing services.
 LogDebug("Constructing services...")
 for _, service: ModuleScript in services do
