@@ -454,6 +454,7 @@ function DataService.__Construct()
         end)
     end
 
+    -- Loading required ordered data stores.
     for _, orderedStoreName: string in DataSettings.REQUIRED_ORDERED_STORES do
         LoadOrderedDataStore(orderedStoreName)
     end
