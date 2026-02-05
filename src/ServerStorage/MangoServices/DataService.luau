@@ -56,6 +56,48 @@ function DataService.__Construct()
     --// FUNCTIONS \--
 
     --[=[
+        Loads a data store by name and stores it in the loadedStores table.
+
+        ### Parameters:
+        ```luau
+        storeName: string -- The name of the data store to load.
+        ```
+    ]=]
+    local function LoadDataStore(storeName: string)
+        local loadSuccess: boolean, loadResponse: DataStore | string = xpcall(function()
+            return DataStoreService:GetDataStore(storeName, DataSettings.DATA_VERSION)
+        end, Logger.error)
+
+        if loadSuccess then
+            loadedStores[storeName] = loadResponse
+            Logger.info(`Successfully loaded data store {storeName}`)
+        else
+            Logger.warn(`Failed to load data store {storeName}`)
+        end
+    end
+
+    --[=[
+        Loads an ordered data store by name and stores it in the loadedOrderedStores table.
+
+        ### Parameters:
+        ```luau
+        storeName: string -- The name of the ordered data store to load.
+        ```
+    ]=]
+    local function LoadOrderedDataStore(storeName: string)
+        local loadSuccess: boolean, loadResponse: DataStore | string = xpcall(function()
+            return DataStoreService:GetOrderedDataStore(storeName, DataSettings.DATA_VERSION)
+        end, Logger.error)
+
+        if loadSuccess then
+            loadedOrderedStores[storeName] = loadResponse
+            Logger.info(`Successfully loaded ordered data store {storeName}`)
+        else
+            Logger.warn(`Failed to load ordered data store {storeName}`)
+        end
+    end
+
+    --[=[
     	Retrieves or waits for a player's profile to be loaded.
 
     	### Parameters:
@@ -404,12 +446,16 @@ function DataService.__Construct()
     DataService.PlayerDataUpdated = FastSignal.new()
 
     --// RUNTIME \--
+
+    -- Loading required data stores.
     for _, storeName: string in DataSettings.REQUIRED_STORES do
-        loadedStores[storeName] = DataStoreService:GetDataStore(storeName, DataSettings.DATA_VERSION)
+        task.spawn(function()
+            LoadDataStore(storeName)
+        end)
     end
 
     for _, orderedStoreName: string in DataSettings.REQUIRED_ORDERED_STORES do
-        loadedOrderedStores[orderedStoreName] = DataStoreService:GetOrderedDataStore(orderedStoreName, DataSettings.DATA_VERSION)
+        LoadOrderedDataStore(orderedStoreName)
     end
 
     RemoteService.CreateRemoteEvent("DATA_SERVICE_SYNC_DATA")
