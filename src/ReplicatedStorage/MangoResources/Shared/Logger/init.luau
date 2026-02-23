@@ -26,11 +26,13 @@ IN THE SOFTWARE.
 --// SERVICES \\--
 
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 --// CONFIG \\--
 
 local CLIENT_LABEL = "CLIENT 👤"
 local SERVER_LABEL = "SERVER 🖥️"
+local LOG_SIZE = 150
 
 --// MODULES \\--
 
@@ -53,11 +55,22 @@ local WarnMessageOptionsDefault: MessageOptions = {
 }
 
 --// VARIABLES \\--
-
 local Logger = {}
+local logs = {}
 
 --// FUNCTIONS \\--
 
+--[=[
+    Retrieves the current logs stored in the logger.
+
+    ### Returns:
+    ```luau
+    table -- The current logs stored in the logger.
+    ```
+]=]
+local function GetLogs()
+    return logs
+end
 
 --[=[
         Handles formatting and logging using the given function.
@@ -73,17 +86,29 @@ local Logger = {}
 ]=]
 local function Log(message: string, logFunction: (message: string) -> any, options: MessageOptions)
     local stackLabel = RunService:IsClient() and CLIENT_LABEL or SERVER_LABEL
-    local printString = `[{stackLabel} / {DateTime.now():FormatLocalTime("HH:mm:ss.SSS", "en-us")}] >>\n{message}\n`
+    local printString = `[{stackLabel}] >>\n{message}\n`
 
     -- Checking options.
+    local callStack = debug.traceback(nil, 3)
     if options.PrintCallstack then
-        printString ..= `Callstack:\n{debug.traceback(nil, 3)}`
+        printString ..= `Callstack:\n{callStack}`
     end
 
     -- Logging using logging function.
     local messageThread = task.spawn(logFunction, printString)
     while coroutine.status(messageThread) == "running" do
         task.wait()
+    end
+
+    -- Storing log.
+    table.insert(logs, {
+        Message = message,
+        Time = Workspace:GetServerTimeNow(),
+        Callstack = callStack,
+    })
+
+    if #logs > LOG_SIZE then
+        table.remove(logs, 1)
     end
 end
 
@@ -140,5 +165,6 @@ end
 Logger.info = Info
 Logger.warn = Warn
 Logger.error = Error
+Logger.GetLogs = GetLogs
 
 return Logger
