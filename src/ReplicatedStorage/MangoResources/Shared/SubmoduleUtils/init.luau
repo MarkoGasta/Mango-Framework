@@ -41,6 +41,7 @@ type BuildSubmoduleOptions = {
     ConstructionMethod: string,
     InitializationMethod: string,
     ExcludeTemplates: boolean?,
+    Cache: table?,
 }
 
 --// CONSTANTS \\--
@@ -52,6 +53,7 @@ local BuildSubmoduleOptionDefaults: BuildSubmoduleOptions = {
     ConstructionMethod = nil,
     InitializationMethod = nil,
     ExcludeTemplates = true,
+    Cache = {},
 }
 
 --// VARIABLES \\--
@@ -64,6 +66,7 @@ local DefineInitializationMethodName: (methodName: string) -> nil
 local ConstructSubmodule: (submoduleReturn: any, options: BuildSubmoduleOptions) -> boolean
 local InitializeSubmodule: (submoduleReturn: any, options: BuildSubmoduleOptions) -> boolean
 local BuildSubmodules: (submodules: {ModuleScript}, options: BuildSubmoduleOptions?) -> (boolean, {table}?)
+local BuildArraySubmodules: (submodules: {ModuleScript}, options: BuildSubmoduleOptions?) -> (boolean, {table}?)
 local BuildChildrenSubmodules: (parent: Instance, options: BuildSubmoduleOptions?) -> (boolean, {table}?)
 
 --[=[
@@ -75,7 +78,7 @@ local BuildChildrenSubmodules: (parent: Instance, options: BuildSubmoduleOptions
     ```
 ]=]
 LogError = function(message: string)
-    warn(`[SubmoduleUtils] {message}`)
+    warn(`[SubmoduleUtils] {message}\nTraceback:{debug.traceback("", 2)}`)
 end
 
 --[=[
@@ -237,13 +240,13 @@ BuildSubmodules = function(submodules, options)
     if options.ExcludeTemplates then
         for submoduleIndex = #submodules, 1, -1 do
             local submodule = submodules[submoduleIndex]
-            if string.find(submodule.Name, TEMPLATE_TOKEN) then
+            if string.find(string.lower(submodule.Name), string.lower(TEMPLATE_TOKEN)) then
                 table.remove(submodules, submoduleIndex)
             end
         end
     end
 
-    local builtSubmodules = {}
+    local builtSubmodules = options.Cache
     for _, submodule: ModuleScript in submodules do
         local submoduleName = submodule.Name
         local submoduleRequired = require(submodule)
@@ -266,6 +269,50 @@ BuildSubmodules = function(submodules, options)
     return true, builtSubmodules
 end
 
+--[=[
+    Builds submodules from an array of ModuleScripts based on specified options.
+
+    ### Parameters:
+    ```luau
+    submodules: {ModuleScript} -- An array of ModuleScripts to build.
+    options: BuildSubmoduleOptions? -- Optional configuration for submodule construction and initialization.
+    ```
+
+    ### Returns:
+    ```luau
+    boolean -- Returns true if submodules were successfully built, false otherwise.
+    {table}? -- A table containing the built submodules, or nil if building failed.
+    ```
+]=]
+BuildArraySubmodules = function(submodules, options)
+    options = if options
+        then TableUtils.MergeDictionaries(options, BuildSubmoduleOptionDefaults)
+        else BuildSubmoduleOptionDefaults
+
+    return BuildSubmodules(submodules, options)
+end
+
+--[=[
+    Builds all child ModuleScripts under the given parent using the
+    configured construction/initialization methods and options.
+
+    ### Parameters:
+    ```luau
+    parent: Instance -- The parent instance to scan for child modules.
+    options: {
+        FilterType: BuildFilterType?, -- Optional filter type for including/excluding modules.
+        Filter: {string}?, -- Optional list of module names to include/exclude based on the filter type.
+        ConstructionArguments: {any}?, -- Optional arguments to pass to the construction method.
+        InitializationArguments: {any}?, -- Optional arguments to pass to the initialization method.
+    }?   -- Optional overrides for build behavior.
+    ```
+
+    ### Returns:
+    ```luau
+    boolean -- Returns true if submodules were successfully built, false otherwise.
+    {table}? -- A table containing the built submodules, or nil if building failed.
+    ```
+]=]
 BuildChildrenSubmodules = function(parent, options)
     options = if options
         then TableUtils.MergeDictionaries(options, BuildSubmoduleOptionDefaults)
@@ -278,6 +325,7 @@ end
 --// EXPORTS \\--
 submoduleUtils.DefineConstructionMethodName = DefineConstructionMethodName
 submoduleUtils.DefineInitializationMethodName = DefineInitializationMethodName
+submoduleUtils.BuildArraySubmodules = BuildArraySubmodules
 submoduleUtils.BuildChildrenSubmodules = BuildChildrenSubmodules
 
 --// RUNTIME \\--
