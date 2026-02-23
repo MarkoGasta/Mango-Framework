@@ -598,12 +598,12 @@ end
         table -- The newly created copy of currentTable.
         ```
 ]=]
-local function InternalCopyTable(primaryTable: table, currentTable: table, options: CopyTableOptions?)
+local function InternalCopyTable(orginalTable: table, primaryTable: table, currentTable: table, options: CopyTableOptions?)
 	options = options and MergeDictionaries(options, CopyTableOptionsDefaults) or CopyTableOptionsDefaults
 
 	local tableCopy = {}
 	for key, value in currentTable do
-		if options.RemoveCyclic and value == primaryTable then
+		if options.RemoveCyclic and value == orginalTable then
 			continue
 		end
 
@@ -611,7 +611,7 @@ local function InternalCopyTable(primaryTable: table, currentTable: table, optio
 			if value == primaryTable then
 				tableCopy[key] = tableCopy
 			else
-				tableCopy[key] = InternalCopyTable(primaryTable, value, options)
+				tableCopy[key] = InternalCopyTable(orginalTable, primaryTable, value, options)
 			end
 		else
 			tableCopy[key] = value
@@ -663,7 +663,7 @@ local function CopyTable(originalTable: table, options: CopyTableOptions?)
 				if value == originalTable then
 					tableCopy[key] = tableCopy
 				else
-					tableCopy[key] = InternalCopyTable(tableCopy, value, options)
+					tableCopy[key] = InternalCopyTable(originalTable, tableCopy, value, options)
 				end
 			end
 		else
