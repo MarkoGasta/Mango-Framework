@@ -12,8 +12,6 @@ function GameController.__Construct()
 
     --// MODULES \\--
     local MangoClient = require(ReplicatedStorage:WaitForChild("MangoClient"))
-    local RemoteController = MangoClient.Require("RemoteController")
-    local DataController = MangoClient.Require("DataController")
 
     --// TYPES \\--
 

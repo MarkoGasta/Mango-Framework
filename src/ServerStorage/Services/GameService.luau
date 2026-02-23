@@ -12,7 +12,6 @@ function GameService.__Construct()
 
     --// MODULES \\--
     local MangoServer = require(ServerStorage:WaitForChild("MangoServer"))
-
     --// TYPES \\--
 
     --// CONSTANTS \\--
