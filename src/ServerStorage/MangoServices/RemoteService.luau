@@ -81,6 +81,29 @@ function RemoteService.__Construct()
         return true
     end
 
+    local function FireClients(players: {Player}, eventName: string, ...: any...): boolean
+        local remoteEvent = GetRequestedRemote(eventName)
+        if not remoteEvent then
+            remoteEvent = CreateRemoteEvent(eventName)
+            Logger.warn(`Please, create the remote event '{eventName}' explicitly for syncing with client`)
+        end
+
+        if not remoteEvent:IsA("RemoteEvent") then
+            return false
+        end
+
+        for _, player in players do
+            if not player:IsA("Player") then
+                Logger.warn(`Invalid player instance provided for firing remote event '{eventName}'`)
+                continue
+            end
+
+            remoteEvent:FireClient(player, ...)
+        end
+
+        return true
+    end
+
     local function FireAllClients(eventName: string, ...: any...): boolean
         local remoteEvent = GetRequestedRemote(eventName)
         if not remoteEvent then
@@ -196,6 +219,7 @@ function RemoteService.__Construct()
     RemoteService.CreateRemoteEvent = CreateRemoteEvent
     RemoteService.CreateRemoteFunction = CreateRemoteFunction
     RemoteService.FireClient = FireClient
+    RemoteService.FireClients = FireClients
     RemoteService.FireAllClients = FireAllClients
     RemoteService.OnServerEvent = OnServerEvent
     RemoteService.OnServerInvoke = OnServerInvoke
