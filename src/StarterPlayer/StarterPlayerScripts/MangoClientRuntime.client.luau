@@ -33,9 +33,6 @@ local Players = game:GetService("Players")
 local DEBUG_LOGGING = false
 local PROGRES_LOGGING = true
 local GAME_CONTROLLER_REQUIRED = true
-local CONSTRUCTED_FLAG = "__IsConstructed"
-local CONSTRUCTION_METHOD = "__Construct"
-local INITIALIZATION_METHOD = "__Init"
 local CONTROLLER_CONTAINERS = {
     ReplicatedStorage:WaitForChild("Controllers"),
     ReplicatedStorage:WaitForChild("MangoControllers"),
@@ -102,11 +99,6 @@ if not RuntimeSettings.CONTROLLER_PRIORITIES then
     return
 end
 
--- Adding global values.
-MangoClient.Global.__ConstructedFlag = CONSTRUCTED_FLAG
-MangoClient.Global.ConstructionMethod = CONSTRUCTION_METHOD
-MangoClient.Global.InitializationMethod = INITIALIZATION_METHOD
-
 -- Initiating client runtime.
 LogProgress(`Initiating client runtime...`)
 LogDebug("Gathering controllers...")
@@ -135,9 +127,6 @@ if not PublicValues.GetValue("ServerLoaded") then
     PublicValues.WaitForValue("ServerLoaded", 120)
 end
 
-SubmoduleUtils.DefineConstructionMethodName(CONSTRUCTION_METHOD)
-SubmoduleUtils.DefineInitializationMethodName(INITIALIZATION_METHOD)
-
 -- Constructing controllers.
 LogDebug("Constructing controllers...")
 for _, controller: ModuleScript in controllers do
@@ -147,19 +136,19 @@ for _, controller: ModuleScript in controllers do
 
     -- Calling init if it exists.
     LogDebug('Requiring successful!')
-    if requiredController[CONSTRUCTED_FLAG] then
+    if requiredController[RuntimeSettings.CONSTRUCTED_FLAG] then
         LogProgress(`🔨 {controller.Name} was pre-constructed, skipping construction...`)
     else
         LogDebug(`Starting {controller.Name} construction...`)
-        if requiredController[CONSTRUCTION_METHOD] then
-            local success = xpcall(requiredController[CONSTRUCTION_METHOD], Logger.error)
+        if requiredController[RuntimeSettings.CONSTRUCTION_METHOD] then
+            local success = xpcall(requiredController[RuntimeSettings.CONSTRUCTION_METHOD], Logger.error)
             if not success then
                 Logger.warn(`Failed to construct {controller.Name}, will attempt to continue without it.`)
                 table.remove(controllers, table.find(controllers, controller))
                 continue
             end
         else
-            Logger.warn(`Controller {controller.Name} is missing construction method {CONSTRUCTION_METHOD}, will attempt to continue without it!`)
+            Logger.warn(`Controller {controller.Name} is missing construction method {RuntimeSettings.CONSTRUCTION_METHOD}, will attempt to continue without it!`)
             table.remove(controllers, table.find(controllers, controller))
             continue
         end
@@ -179,10 +168,10 @@ for _, controller: ModuleScript in controllers do
 
     -- Calling init if it exists.
     LogDebug(`Starting {controller.Name} initialization...`)
-    if requiredController[INITIALIZATION_METHOD] then
-        xpcall(requiredController[INITIALIZATION_METHOD], Logger.warn)
+    if requiredController[RuntimeSettings.INITIALIZATION_METHOD] then
+        xpcall(requiredController[RuntimeSettings.INITIALIZATION_METHOD], Logger.warn)
     else
-        Logger.warn(`Controller {controller.Name} is missing initialization method {INITIALIZATION_METHOD}!`)
+        Logger.warn(`Controller {controller.Name} is missing initialization method {RuntimeSettings.INITIALIZATION_METHOD}!`)
         continue
     end
     

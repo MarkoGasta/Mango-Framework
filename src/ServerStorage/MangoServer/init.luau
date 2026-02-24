@@ -57,8 +57,8 @@ local MangoServer = {
 }
 
 --// VARIABLES \\--
-
 local moduleCache = {}
+local generalCacheFieldHandlers = {}
 
 --// FUNCTIONS \\--
 
@@ -72,6 +72,29 @@ local moduleCache = {}
 ]=]
 local function LogError(message: string)
     warn(`[MangoClient] {message}\nStack trace:\n{debug.traceback()}`)
+end
+
+--[=[
+	Invokes a named function on all registered general cache field handlers for a player.
+
+	### Parameters:
+	```luau
+	player: Player -- The player to pass to each handler.
+	cache: table -- The player's cache table to pass to each handler.
+	handlerFunctionName: string -- The name of the handler function to call on each handler.
+	```
+]=]
+local function CallGeneralCacheFieldHandlers(player: Player, cache: table, handlerFunctionName: string)
+    for _, handler: table in generalCacheFieldHandlers do
+        if typeof(handler[handlerFunctionName]) == "function" then
+            local callSuccess = xpcall(handler[handlerFunctionName], LogError, player, cache)
+            if not callSuccess then
+                LogError(`Failed to call general cache field handler function {handlerFunctionName}.`)
+            end
+        else
+            LogError(`General cache field handler does not have function {handlerFunctionName}.`)
+        end
+    end
 end
 
 --[=[
@@ -193,7 +216,9 @@ end
 
 -- Handles player being added to the game.
 local function PlayerAdded(player: Player)
-    MangoServer.PlayerCache[player] = {}
+    local newPlayerCache = {}
+    MangoServer.PlayerCache[player] = newPlayerCache
+    CallGeneralCacheFieldHandlers(player, newPlayerCache, "PlayerCacheCreated")
 end
 
 -- Handles player leaving the game.
@@ -202,8 +227,17 @@ local function PlayerRemoving(player: Player)
 end
 
 --// RUNTIME \\--
+
+local SubmoduleUtils = Require("SubmoduleUtils")
+local RuntimeSettings = Require('RuntimeSettings')
+SubmoduleUtils.DefineConstructionMethodName(RuntimeSettings.CONSTRUCTION_METHOD)
+SubmoduleUtils.DefineInitializationMethodName(RuntimeSettings.INITIALIZATION_METHOD)
+SubmoduleUtils.BuildChildrenSubmodules(script.GeneralCacheFieldHandlers, {
+    Cache = generalCacheFieldHandlers,
+})
+
 for _, player: Player in Players:GetPlayers() do
-    PlayerAdded(player)
+    task.defer(PlayerAdded, player)
 end
 
 local Connector = Require("Connector")
@@ -213,6 +247,7 @@ Connector.Connect(Players.PlayerAdded, PlayerAdded, {
 Connector.Connect(Players.PlayerRemoving, PlayerRemoving, {
     Priority = Connector.Enum.DefaultPriority + 10,
 })
+
 
 --// EXPORTS \\--
 MangoServer.GetCacheField = GetCacheField

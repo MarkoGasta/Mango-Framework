@@ -30,9 +30,6 @@ local ServerStorage = game:GetService("ServerStorage")
 local DEBUG_LOGGING = false
 local PROGRES_LOGGING = true
 local GAME_SERVICE_REQUIRED = true
-local CONSTRUCTED_FLAG = "__IsConstructed"
-local CONSTRUCTION_METHOD = "__Construct"
-local INITIALIZATION_METHOD = "__Init"
 local SERVICE_CONTAINERS = {
     ServerStorage:WaitForChild("Services"),
     ServerStorage:WaitForChild("MangoServices")
@@ -40,7 +37,6 @@ local SERVICE_CONTAINERS = {
 
 --// MODULES \\--
 local MangoServer = require(ServerStorage:WaitForChild("MangoServer"))
-local SubmoduleUtils = MangoServer.Require("SubmoduleUtils")
 local PublicValues = MangoServer.Require("PublicValues")
 local TableUtils = MangoServer.Require('TableUtils')
 local Logger = MangoServer.Require("Logger")
@@ -95,11 +91,6 @@ if not RuntimeSettings.SERVICE_PRIORITIES then
     return
 end
 
--- Adding global values.
-MangoServer.Global.__ConstructedFlag = CONSTRUCTED_FLAG
-MangoServer.Global.__ConstructionMethod = CONSTRUCTION_METHOD
-MangoServer.Global.__InitializationMethod = INITIALIZATION_METHOD
-
 -- Getting services from all destinations.
 LogProgress(`Initiating server runtime...`)
 LogDebug("Gathering services...")
@@ -116,9 +107,6 @@ table.sort(services, function(service1: ModuleScript, service2: ModuleScript)
     return service1Priority < service2Priority
 end)
 
-SubmoduleUtils.DefineConstructionMethodName(CONSTRUCTION_METHOD)
-SubmoduleUtils.DefineInitializationMethodName(INITIALIZATION_METHOD)
-
 -- Constructing services.
 LogDebug("Constructing services...")
 for _, service: ModuleScript in services do
@@ -129,18 +117,18 @@ for _, service: ModuleScript in services do
     -- Calling Construct if it exists.
     LogDebug('Requiring successful!')
     LogDebug(`Starting {service.Name} construction...`)
-    if requiredService[CONSTRUCTED_FLAG] then
+    if requiredService[RuntimeSettings.CONSTRUCTED_FLAG] then
         LogProgress(`🔨 {service.Name} was pre-constructed, skipping construction...`)
     else
-        if requiredService[CONSTRUCTION_METHOD] then
-            local success = xpcall(requiredService[CONSTRUCTION_METHOD], Logger.error)
+        if requiredService[RuntimeSettings.CONSTRUCTION_METHOD] then
+            local success = xpcall(requiredService[RuntimeSettings.CONSTRUCTION_METHOD], Logger.error)
             if not success then
                 Logger.warn(`Failed to construct {service.Name}, will attempt to continue without it.`)
                 table.remove(services, table.find(services, service))
                 continue
             end
         else
-            Logger.warn(`{service.Name} is missing construction method {CONSTRUCTION_METHOD}, will attempt to continue without it!`)
+            Logger.warn(`{service.Name} is missing construction method {RuntimeSettings.CONSTRUCTION_METHOD}, will attempt to continue without it!`)
             table.remove(services, table.find(services, service))
             continue
         end
@@ -161,10 +149,10 @@ for _, service: ModuleScript in services do
 
     -- Calling Init if it exists.
     LogDebug(`Starting {service.Name} initialization...`)
-    if requiredService[INITIALIZATION_METHOD] then
-        xpcall(requiredService[INITIALIZATION_METHOD], Logger.warn)
+    if requiredService[RuntimeSettings.INITIALIZATION_METHOD] then
+        xpcall(requiredService[RuntimeSettings.INITIALIZATION_METHOD], Logger.warn)
     else
-        Logger.error(`{service.Name} is missing initialization method {INITIALIZATION_METHOD}!`)
+        Logger.error(`{service.Name} is missing initialization method {RuntimeSettings.INITIALIZATION_METHOD}!`)
         continue
     end
     

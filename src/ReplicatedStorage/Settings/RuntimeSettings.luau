@@ -1,5 +1,9 @@
 return {
     DEFAULT_PRIORITY = 10,
+    CONSTRUCTED_FLAG = "__IsConstructed",
+    CONSTRUCTION_METHOD = "__Construct",
+    INITIALIZATION_METHOD = "__Init",
+
     CONTROLLER_PRIORITIES = {
         GameController = 99,
         DataController = 9,
