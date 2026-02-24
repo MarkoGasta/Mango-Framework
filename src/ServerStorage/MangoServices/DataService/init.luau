@@ -21,6 +21,7 @@ function DataService.__Construct()
     --// MODULES \--
     local MangoServer = require(ServerStorage:WaitForChild("MangoServer"))
     local ProfileService = MangoServer.Require("ProfileService")
+    local SubmoduleUtils = MangoServer.Require("SubmoduleUtils")
     local RemoteService = MangoServer.Require("RemoteService")
     local FastSignal = MangoServer.Require("FastSignal")
     local TableUtils = MangoServer.Require("TableUtils")
@@ -52,6 +53,7 @@ function DataService.__Construct()
     local playerProfiles = {}
     local loadedStores = {}
     local loadedOrderedStores = {}
+    local selfUpdatingFieldHandlers = {}
 
     --// FUNCTIONS \--
 
@@ -94,6 +96,17 @@ function DataService.__Construct()
             Logger.info(`Successfully loaded ordered data store {storeName}`)
         else
             Logger.warn(`Failed to load ordered data store {storeName}`)
+        end
+    end
+
+    local function CallAllSelfUpdatingFieldHandlers(player: Player, profile: table, handlerFunctionName: string)
+        for _, handler: table in selfUpdatingFieldHandlers do
+            if typeof(handler[handlerFunctionName]) == "function" then
+                local callSuccess, callResponse = xpcall(handler[handlerFunctionName], Logger.error, player, profile)
+                if not callSuccess then
+                    Logger.warn(`Failed to call handler function {handlerFunctionName}.`)
+                end
+            end
         end
     end
 
@@ -161,10 +174,28 @@ function DataService.__Construct()
             playerProfile:AddUserId(player.UserId)
             playerProfile:Reconcile()
             playerProfiles[player.UserId] = playerProfile
+            CallAllSelfUpdatingFieldHandlers(player, playerProfile, "HandlePlayerProfileLoaded")
 
             Logger.info(`Successfully loaded {player.Name}'s profile!`)
         else
             return player:Kick(`Your profile couldn't be loaded, please rejoin. If the problem continue please report it on our community server or to an admin.`)
+        end
+    end
+
+    --[=[
+        Handles cleanup when a player leaves the game, releasing their profile.
+
+        ### Parameters:
+        ```luau
+        player: Player -- The player who is leaving.
+        ```
+    ]=]
+    local function PlayerRemoving(player: Player)
+        local playerProfile = playerProfiles[player.UserId]
+        if playerProfile then
+            CallAllSelfUpdatingFieldHandlers(player, playerProfile, "HandlePlayerProfileUnloading")
+            playerProfile:Release()
+            playerProfiles[player.UserId] = nil
         end
     end
 
@@ -419,6 +450,7 @@ function DataService.__Construct()
         end
 
         Connector.Connect(Players.PlayerAdded, PlayerAdded)
+        Connector.Connect(Players.PlayerRemoving, PlayerRemoving)
 
         -- Periodically syncs player data.
         task.defer(function()
@@ -458,6 +490,10 @@ function DataService.__Construct()
     for _, orderedStoreName: string in DataSettings.REQUIRED_ORDERED_STORES do
         LoadOrderedDataStore(orderedStoreName)
     end
+
+    SubmoduleUtils.BuildChildrenSubmodules(script.SelfUpdatingFieldHandlers, {
+        Cache = selfUpdatingFieldHandlers,
+    })
 
     RemoteService.CreateRemoteEvent("DATA_SERVICE_SYNC_DATA")
     RemoteService.OnServerInvoke("DATA_CONTROLLER_GET_DATA", GetPlayerData)
