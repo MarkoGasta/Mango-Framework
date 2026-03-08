@@ -46,6 +46,25 @@ function RemoteService.__Construct()
         MangoServer.SetCacheField(player, "RemoteRandom", playerRandom)
         return true, playerKey
     end
+    
+    local function GetRequestedRemote(name: string): RemoteEvent | RemoteFunction | nil
+        local remoteInstance = RemoteStorage:FindFirstChild(name)
+        return remoteInstance
+    end
+
+    local function DestroyRemoteEvent(eventName: string)
+        local remoteEvent = GetRequestedRemote(eventName)
+        if remoteEvent and remoteEvent:IsA("RemoteEvent") then
+            remoteEvent:Destroy()
+        end
+    end
+
+    local function DestroyRemoteFunction(functionName: string)
+        local remoteFunction = GetRequestedRemote(functionName)
+        if remoteFunction and remoteFunction:IsA("RemoteFunction") then
+            remoteFunction:Destroy()
+        end
+    end
 
     local function CreateRemoteEvent(name: string): RemoteEvent
         local remoteEvent = Instance.new("RemoteEvent")
@@ -59,11 +78,6 @@ function RemoteService.__Construct()
         remoteFunction.Name = name
         remoteFunction.Parent = RemoteStorage
         return remoteFunction
-    end
-
-    local function GetRequestedRemote(name: string): RemoteEvent | RemoteFunction | nil
-        local remoteInstance = RemoteStorage:FindFirstChild(name)
-        return remoteInstance
     end
 
     local function FireClient(player: Player, eventName: string, ...: any...): boolean
@@ -218,6 +232,8 @@ function RemoteService.__Construct()
     RemoteService.__Init = Init
     RemoteService.CreateRemoteEvent = CreateRemoteEvent
     RemoteService.CreateRemoteFunction = CreateRemoteFunction
+    RemoteService.DestroyRemoteEvent = DestroyRemoteEvent
+    RemoteService.DestroyRemoteFunction = DestroyRemoteFunction
     RemoteService.FireClient = FireClient
     RemoteService.FireClients = FireClients
     RemoteService.FireAllClients = FireAllClients
