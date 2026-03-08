@@ -35,8 +35,8 @@ function TeleportController.__Construct()
         warn(`[TeleportController] {message}`)
     end
 
-    local function Teleport(placeIdentifier: string)
-        local teleportSuccess: boolean, teleportResponse: string? = RemoteController.InvokeServer("TELEPORT_CONTROLLER_REQUEST_TELEPORT", placeIdentifier)
+    local function Teleport(placeIdentifier: string, teleportData: table?)
+        local teleportSuccess: boolean, teleportResponse: string? = RemoteController.InvokeServer("TELEPORT_CONTROLLER_REQUEST_TELEPORT", placeIdentifier, teleportData)
         if not teleportSuccess then
             LogWarning(`Teleportation failed, details:\n{teleportResponse}`)
         end
