@@ -62,23 +62,23 @@ local controllers = {}
 --- Wrapper for logging progress messages.
 --- @param message string The message to log.
 local function LogProgress(message: string)
+    MangoClient.Global.LoadProgressString = message
     if not PROGRES_LOGGING then
         return
     end
 
     Logger.info(message)
-    MangoClient.Global.LoadProgressString = message
 end
 
 --- Wrapper for logging debug messages.
 --- @param message string The message to log.
 local function LogDebug(message: string)
+    MangoClient.Global.LoadProgressString = message
     if not DEBUG_LOGGING then
         return
     end
 
     Logger.info(message)
-    MangoClient.Global.LoadProgressString = message
 end
 
 --// RUNTIME \\--
