@@ -24,8 +24,9 @@ IN THE SOFTWARE.
 ]]--
 
 --// SERVICES \\--
-local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
+local RunService = game:GetService("RunService")
 
 --// CONFIG \\--
 local MODULE_WAIT_TIMEOUT = 10
@@ -41,6 +42,7 @@ local MODULE_CONTAINERS = {
 
 --// MODULES \\--
 local Types = require(script.Types)
+local RuntimeSettings: table?
 
 --// TYPES \\--
 
@@ -134,16 +136,18 @@ local function Require(moduleName: Types.ModuleNames)
             moduleCache[moduleName] = requiredModule
 
             -- If the module being required is being called by a construction method, pre-construct the module if it has one.
-            local callingFunction = debug.info(2, "n")
-            local constructionMethod = MangoClient.Global.ConstructionMethod
-            local isCallingFunctionConstructor = callingFunction == constructionMethod
-            local isRequiredModuleTable = typeof(requiredModule) == "table"
-            if isRequiredModuleTable then
-                local hasRequiredModuleConstructionMethod = requiredModule[constructionMethod] ~= nil
-                local wasRequiredModuleConstructed = requiredModule["__IsConstructed"] == true
-                if isCallingFunctionConstructor and hasRequiredModuleConstructionMethod and not wasRequiredModuleConstructed then
-                    requiredModule[constructionMethod]()
-                    requiredModule[MangoClient.Global.__ConstructedFlag] = true
+            if RuntimeSettings then
+                local callingFunction = debug.info(2, "n")
+                local constructionMethod = RuntimeSettings.CONSTRUCTION_METHOD
+                local isCallingFunctionConstructor = callingFunction == constructionMethod
+                local isRequiredModuleTable = typeof(requiredModule) == "table"
+                if isRequiredModuleTable then
+                    local hasRequiredModuleConstructionMethod = requiredModule[constructionMethod] ~= nil
+                    local wasRequiredModuleConstructed = requiredModule[RuntimeSettings.CONSTRUCTED_FLAG] == true
+                    if isCallingFunctionConstructor and hasRequiredModuleConstructionMethod and not wasRequiredModuleConstructed then
+                        requiredModule[constructionMethod]()
+                        requiredModule[RuntimeSettings.CONSTRUCTED_FLAG] = true
+                    end
                 end
             end
 
@@ -162,5 +166,14 @@ end
 MangoClient.CacheModule = CacheModule
 MangoClient.LockModule = LockModule
 MangoClient.Require = Require:: Types.Modules
+
+--// RUNTIME \\--
+RuntimeSettings = Require("RuntimeSettings")
+MangoClient.Global.ConstructionMethod = RuntimeSettings.CONSTRUCTION_METHOD
+MangoClient.Global.InitializationMethod = RuntimeSettings.INITIALIZATION_METHOD
+
+local SubmoduleUtils = Require("SubmoduleUtils")
+SubmoduleUtils.DefineConstructionMethodName(RuntimeSettings.CONSTRUCTION_METHOD)
+SubmoduleUtils.DefineInitializationMethodName(RuntimeSettings.INITIALIZATION_METHOD)
 
 return MangoClient

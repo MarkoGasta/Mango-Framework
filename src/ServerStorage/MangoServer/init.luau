@@ -44,8 +44,8 @@ local MODULE_CONTAINERS = {
 }
 
 --// MODULES \\--
-
 local Types = require(script.Types)
+local RuntimeSettings: table?
 
 --// TYPES \\--
 
@@ -147,16 +147,18 @@ local function Require(moduleName: Types.ModuleNames)
             moduleCache[moduleName] = requiredModule
 
             -- If the module being required is being called by a construction method, pre-construct the module if it has one.
-            local callingFunction = debug.info(2, "n")
-            local constructionMethod = MangoServer.Global.__ConstructionMethod
-            local isCallingFunctionConstructor = callingFunction == constructionMethod
-            local isRequiredModuleTable = typeof(requiredModule) == "table"
-            if isRequiredModuleTable then
-                local hasRequiredModuleConstructionMethod = requiredModule[constructionMethod] ~= nil
-                local wasRequiredModuleConstructed = requiredModule["__IsConstructed"] == true
-                if isCallingFunctionConstructor and hasRequiredModuleConstructionMethod and not wasRequiredModuleConstructed then
-                    requiredModule[constructionMethod]()
-                    requiredModule[MangoServer.Global.__ConstructedFlag] = true
+            if RuntimeSettings then
+                local callingFunction = debug.info(2, "n")
+                local constructionMethod = RuntimeSettings.CONSTRUCTION_METHOD
+                local isCallingFunctionConstructor = callingFunction == constructionMethod
+                local isRequiredModuleTable = typeof(requiredModule) == "table"
+                if isRequiredModuleTable then
+                    local hasRequiredModuleConstructionMethod = requiredModule[constructionMethod] ~= nil
+                    local wasRequiredModuleConstructed = requiredModule[RuntimeSettings.CONSTRUCTED_FLAG] == true
+                    if isCallingFunctionConstructor and hasRequiredModuleConstructionMethod and not wasRequiredModuleConstructed then
+                        requiredModule[constructionMethod]()
+                        requiredModule[RuntimeSettings.CONSTRUCTED_FLAG] = true
+                    end
                 end
             end
 
@@ -187,7 +189,7 @@ end
 local function GetCacheField(player: Player, key: string)
 	local playerCache = MangoServer.PlayerCache[player]
     if not playerCache then
-        LogError(`Player cache for player '{player.Name}' does not exist!`)
+        LogError(`Player cache does not exist!`)
         return
     end
 
@@ -207,7 +209,7 @@ end
 local function SetCacheField(player: Player, key: string, value: any)
     local playerCache = MangoServer.PlayerCache[player]
     if not playerCache then
-        LogError(`Player cache for player '{player.Name}' does not exist!`)
+        LogError(`Player cache does not exist!`)
         return
     end
 
@@ -228,8 +230,11 @@ end
 
 --// RUNTIME \\--
 
+RuntimeSettings = Require('RuntimeSettings')
+MangoServer.Global.__ConstructionMethod = RuntimeSettings.CONSTRUCTION_METHOD
+MangoServer.Global.__InitializationMethod = RuntimeSettings.INITIALIZATION_METHOD
+
 local SubmoduleUtils = Require("SubmoduleUtils")
-local RuntimeSettings = Require('RuntimeSettings')
 SubmoduleUtils.DefineConstructionMethodName(RuntimeSettings.CONSTRUCTION_METHOD)
 SubmoduleUtils.DefineInitializationMethodName(RuntimeSettings.INITIALIZATION_METHOD)
 SubmoduleUtils.BuildChildrenSubmodules(script.GeneralCacheFieldHandlers, {
