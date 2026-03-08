@@ -37,6 +37,47 @@ function TeleportService.__Construct()
     end
 
     --[=[
+        Teleports a player to a specified place.
+
+        ### Parameters:
+        ```luau
+        player: Player -- The player to teleport.
+        placeIdentifier: string -- The place identifier to look up in settings.
+        teleportData: table? -- Optional teleport data to pass along with the teleport.
+        ```
+
+        ### Returns:
+        ```luau
+        boolean -- Whether the teleport request succeeded.
+        string? -- Error details when the request fails.
+        ```
+    ]=]
+    local function TeleportPlayer(player: Player, placeIdentifier: string, teleportData: table?): (boolean, string?)
+        local placeData = TeleportSettings.PLACE_DATA[placeIdentifier]
+        if not placeData then
+            LogWarning(`Place with identifier {placeIdentifier} not found`)
+            return false, `Place with identifier {placeIdentifier} not found`
+        end
+
+        local teleportOptions = Instance.new("TeleportOptions")
+        if teleportData then
+            teleportOptions:SetTeleportData(teleportData)
+        end
+
+        local placeId = placeData.PLACE_ID
+        local teleportSuccess, teleportResponse = pcall(function()
+            return InternalTeleportService:TeleportAsync(placeId, {player}, teleportOptions)
+        end)
+
+        if not teleportSuccess then
+            LogWarning(teleportResponse)
+            return false, teleportResponse
+        end
+
+        return true
+    end
+
+    --[=[
         Handles a self-teleport request from a player.
 
         ### Parameters:
@@ -51,7 +92,7 @@ function TeleportService.__Construct()
         string? -- Error details when the request fails.
         ```
     ]=]
-    local function HandlePlayerTeleportRequest(player: Player, placeIdentifier: string)
+    local function HandlePlayerTeleportRequest(player: Player, placeIdentifier: string, teleportData: table?)
         local placeData = TeleportSettings.PLACE_DATA[placeIdentifier]
         if not placeData then
             return false, `Place with identifier {placeIdentifier} not found`
@@ -61,16 +102,7 @@ function TeleportService.__Construct()
             return false, `Place does not allow self teleportation`
         end
 
-        local placeId = placeData.PLACE_ID
-        local teleportSuccess, teleportResponse = pcall(function()
-            return InternalTeleportService:TeleportAsync(placeId, {player})
-        end)
-
-        if not teleportSuccess then
-            return false, teleportResponse
-        end
-
-        return true
+        return TeleportPlayer(player, placeIdentifier, teleportData)
     end
 
     -- Initializes the service.
@@ -88,6 +120,7 @@ function TeleportService.__Construct()
 
     --// EXPORTS \\--
     TeleportService.__Init = Init
+    TeleportService.TeleportPlayer = TeleportPlayer
 
     --// RUNTIME \\--
     RemoteService.OnServerInvoke("TELEPORT_CONTROLLER_REQUEST_TELEPORT", HandlePlayerTeleportRequest)
