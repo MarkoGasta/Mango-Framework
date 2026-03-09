@@ -41,6 +41,7 @@ function DataService.__Construct()
     local IsStudio = RunService:IsStudio()
     local DataTemplate = (IsStudio and USE_TEST_DATA) and DataSettings.TEST_DATA_TEMPLATE or DataSettings.DATA_TEMPLATE
     local ProfileStore = ProfileService.GetProfileStore(`PlayerData_v{DataSettings.DATA_VERSION}`, DataTemplate)
+    local SubmoduleStorage = ServerStorage.MangoSubmodules.DataService
 
     local GetOrderedDataOptionsDefaults: GetOrderedDataOptions = {
         Ascending = false,
@@ -491,7 +492,7 @@ function DataService.__Construct()
         LoadOrderedDataStore(orderedStoreName)
     end
 
-    SubmoduleUtils.BuildChildrenSubmodules(script.SelfUpdatingFieldHandlers, {
+    SubmoduleUtils.BuildChildrenSubmodules(SubmoduleStorage.SelfUpdatingFieldHandlers, {
         Cache = selfUpdatingFieldHandlers,
     })
 
