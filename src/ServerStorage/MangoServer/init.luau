@@ -50,7 +50,7 @@ local RuntimeSettings: table?
 --// TYPES \\--
 
 --// CONSTANTS \\--
-
+local SubmoduleStorage = ServerStorage.MangoSubmodules.MangoServer
 local MangoServer = {
     Global = {},
     PlayerCache = {},
@@ -237,7 +237,7 @@ MangoServer.Global.__InitializationMethod = RuntimeSettings.INITIALIZATION_METHO
 local SubmoduleUtils = Require("SubmoduleUtils")
 SubmoduleUtils.DefineConstructionMethodName(RuntimeSettings.CONSTRUCTION_METHOD)
 SubmoduleUtils.DefineInitializationMethodName(RuntimeSettings.INITIALIZATION_METHOD)
-SubmoduleUtils.BuildChildrenSubmodules(script.GeneralCacheFieldHandlers, {
+SubmoduleUtils.BuildChildrenSubmodules(SubmoduleStorage.GeneralCacheFieldHandlers, {
     Cache = generalCacheFieldHandlers,
 })
 
