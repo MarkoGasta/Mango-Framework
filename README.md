@@ -5,7 +5,7 @@
 	<strong>
 		Mango Framework
 	</strong>
-	 is a take on creating a light and easy to use framework for handling all the scripts you need in creating experiences on 
+	 is my take on creating a professional and feature full, but still easy to use, framework for handling all the scripts you need in creating experiences on 
 	<em>
 		Roblox
 	</em>
