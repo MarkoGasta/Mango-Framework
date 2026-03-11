@@ -6,32 +6,16 @@ return {
 
     CONTROLLER_PRIORITIES = {
         GameController = 99,
-        DataController = 9,
-        RemoteController = 1,
     },
     SERVICE_PRIORITIES = {
         GameService = 99,
-        DataService = 9,
-        RemoteService = 1,
     },
 
     DISABLED_CONTROLLLERS = {
-        "InterfaceController",
-        "ChatController",
-        "DataController",
-        "RemoteController",
-        "ReplicatorController",
-        "SoundController",
-        "TeleportController"
+
     },
 
     DISABLED_SERVICES = {
-        "ChatService",
-        "DataService",
-        "IdleService",
-        "LeaderstatService",
-        "RemoteService",
-        "ReplicatorService",
-        "TeleportService",
+
     }
 }

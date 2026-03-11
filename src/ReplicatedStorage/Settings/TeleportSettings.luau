@@ -1,3 +1,0 @@
-return {
-    PLACE_DATA = {}
-}
