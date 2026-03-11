@@ -5,5 +5,5 @@
 
 [tasks.defineTypes]
 description = "Generate Types.luau files for enabling passing module types."
-run = "python ./TypeDefiner.py"
+run = "python ./utils/TypeDefiner.py"
 silent = true
