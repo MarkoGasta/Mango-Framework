@@ -110,25 +110,31 @@ end)
 -- Constructing services.
 LogDebug("Constructing services...")
 for _, service: ModuleScript in services do
-    LogDebug(`Requiring {service.Name}...`)
+    local serviceName = service.Name
+    if table.find(RuntimeSettings.DISABLED_SERVICES, serviceName) then
+        LogDebug(`Service {serviceName} is disabled, skipping construction...`)
+        continue
+    end
+
+    LogDebug(`Requiring {serviceName}...`)
     local serviceConstructionStartTime = os.clock()
-    local requiredService = MangoServer.Require(service.Name)
+    local requiredService = MangoServer.Require(serviceName)
 
     -- Calling Construct if it exists.
     LogDebug('Requiring successful!')
-    LogDebug(`Starting {service.Name} construction...`)
+    LogDebug(`Starting {serviceName} construction...`)
     if requiredService[RuntimeSettings.CONSTRUCTED_FLAG] then
-        LogProgress(`🔨 {service.Name} was pre-constructed, skipping construction...`)
+        LogProgress(`🔨 {serviceName} was pre-constructed, skipping construction...`)
     else
         if requiredService[RuntimeSettings.CONSTRUCTION_METHOD] then
             local success = xpcall(requiredService[RuntimeSettings.CONSTRUCTION_METHOD], Logger.error)
             if not success then
-                Logger.warn(`Failed to construct {service.Name}, will attempt to continue without it.`)
+                Logger.warn(`Failed to construct {serviceName}, will attempt to continue without it.`)
                 table.remove(services, table.find(services, service))
                 continue
             end
         else
-            Logger.warn(`{service.Name} is missing construction method {RuntimeSettings.CONSTRUCTION_METHOD}, will attempt to continue without it!`)
+            Logger.warn(`{serviceName} is missing construction method {RuntimeSettings.CONSTRUCTION_METHOD}, will attempt to continue without it!`)
             table.remove(services, table.find(services, service))
             continue
         end
@@ -136,7 +142,7 @@ for _, service: ModuleScript in services do
         -- Logging time to require and construct.
         local constructTimeTaken = os.clock() - serviceConstructionStartTime
         local timeTakenFormatted = math.round(constructTimeTaken * 1000)
-        LogProgress(`🔨 {service.Name} constructed, took {timeTakenFormatted}ms!`)
+        LogProgress(`🔨 {serviceName} constructed, took {timeTakenFormatted}ms!`)
     end
 end
 
@@ -144,22 +150,28 @@ end
 -- Initializing services.
 LogDebug("Initializing services...")
 for _, service: ModuleScript in services do
+    local serviceName = service.Name
+    if table.find(RuntimeSettings.DISABLED_SERVICES, serviceName) then
+        LogDebug(`Service {serviceName} is disabled, skipping initialization...`)
+        continue
+    end
+
     local serviceRequireStartTime = os.clock()
-    local requiredService = MangoServer.Require(service.Name)
+    local requiredService = MangoServer.Require(serviceName)
 
     -- Calling Init if it exists.
-    LogDebug(`Starting {service.Name} initialization...`)
+    LogDebug(`Starting {serviceName} initialization...`)
     if requiredService[RuntimeSettings.INITIALIZATION_METHOD] then
         xpcall(requiredService[RuntimeSettings.INITIALIZATION_METHOD], Logger.warn)
     else
-        Logger.error(`{service.Name} is missing initialization method {RuntimeSettings.INITIALIZATION_METHOD}!`)
+        Logger.error(`{serviceName} is missing initialization method {RuntimeSettings.INITIALIZATION_METHOD}!`)
         continue
     end
     
     -- Logging time to require and initiate.
     local initTimeTaken = os.clock() - serviceRequireStartTime
     local timeTakenFormatted = math.round(initTimeTaken * 1000)
-    LogProgress(`🔥 {service.Name} initialized, took {timeTakenFormatted}ms!`)
+    LogProgress(`🔥 {serviceName} initialized, took {timeTakenFormatted}ms!`)
 end
 
 -- Starting game service.

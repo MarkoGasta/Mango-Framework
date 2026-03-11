@@ -130,25 +130,31 @@ end
 -- Constructing controllers.
 LogDebug("Constructing controllers...")
 for _, controller: ModuleScript in controllers do
-    LogDebug(`Requiring {controller.Name}...`)
+    local controllerName = controller.Name
+    if table.find(RuntimeSettings.DISABLED_CONTROLLLERS, controllerName) then
+        LogDebug(`Controller {controllerName} is disabled, skipping construction...`)
+        continue
+    end
+
+    LogDebug(`Requiring {controllerName}...`)
     local controllerConstructionStartTime = os.clock()
-    local requiredController = MangoClient.Require(controller.Name)
+    local requiredController = MangoClient.Require(controllerName)
 
     -- Calling init if it exists.
     LogDebug('Requiring successful!')
     if requiredController[RuntimeSettings.CONSTRUCTED_FLAG] then
-        LogProgress(`🔨 {controller.Name} was pre-constructed, skipping construction...`)
+        LogProgress(`🔨 {controllerName} was pre-constructed, skipping construction...`)
     else
-        LogDebug(`Starting {controller.Name} construction...`)
+        LogDebug(`Starting {controllerName} construction...`)
         if requiredController[RuntimeSettings.CONSTRUCTION_METHOD] then
             local success = xpcall(requiredController[RuntimeSettings.CONSTRUCTION_METHOD], Logger.error)
             if not success then
-                Logger.warn(`Failed to construct {controller.Name}, will attempt to continue without it.`)
+                Logger.warn(`Failed to construct {controllerName}, will attempt to continue without it.`)
                 table.remove(controllers, table.find(controllers, controller))
                 continue
             end
         else
-            Logger.warn(`Controller {controller.Name} is missing construction method {RuntimeSettings.CONSTRUCTION_METHOD}, will attempt to continue without it!`)
+            Logger.warn(`Controller {controllerName} is missing construction method {RuntimeSettings.CONSTRUCTION_METHOD}, will attempt to continue without it!`)
             table.remove(controllers, table.find(controllers, controller))
             continue
         end
@@ -156,29 +162,35 @@ for _, controller: ModuleScript in controllers do
         -- Logging time to require and construct.
         local constructTimeTaken = os.clock() - controllerConstructionStartTime
         local timeTakenFormatted = math.round(constructTimeTaken * 1000)
-        LogProgress(`🔨 {controller.Name} constructed, took {timeTakenFormatted}ms!`)
+        LogProgress(`🔨 {controllerName} constructed, took {timeTakenFormatted}ms!`)
     end
 end
 
 -- Initializing controllers.
 LogDebug("Initializing controllers...")
 for _, controller: ModuleScript in controllers do
+    local controllerName = controller.Name
+    if table.find(RuntimeSettings.DISABLED_CONTROLLLERS, controllerName) then
+        LogDebug(`Controller {controllerName} is disabled, skipping initialization...`)
+        continue
+    end
+
     local controllerRequireStartTime = os.clock()
-    local requiredController = MangoClient.Require(controller.Name)
+    local requiredController = MangoClient.Require(controllerName)
 
     -- Calling init if it exists.
-    LogDebug(`Starting {controller.Name} initialization...`)
+    LogDebug(`Starting {controllerName} initialization...`)
     if requiredController[RuntimeSettings.INITIALIZATION_METHOD] then
         xpcall(requiredController[RuntimeSettings.INITIALIZATION_METHOD], Logger.warn)
     else
-        Logger.warn(`Controller {controller.Name} is missing initialization method {RuntimeSettings.INITIALIZATION_METHOD}!`)
+        Logger.warn(`Controller {controllerName} is missing initialization method {RuntimeSettings.INITIALIZATION_METHOD}!`)
         continue
     end
     
     -- Logging time to require and initiate.
     local initTimeTaken = os.clock() - controllerRequireStartTime
     local timeTakenFormatted = math.round(initTimeTaken * 1000)
-    LogProgress(`🔥 {controller.Name} initialized, took {timeTakenFormatted}ms!`)
+    LogProgress(`🔥 {controllerName} initialized, took {timeTakenFormatted}ms!`)
 end
 
 -- Client has loaded.

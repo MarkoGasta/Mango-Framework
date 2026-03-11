@@ -14,4 +14,24 @@ return {
         DataService = 9,
         RemoteService = 1,
     },
+
+    DISABLED_CONTROLLLERS = {
+        "InterfaceController",
+        "ChatController",
+        "DataController",
+        "RemoteController",
+        "ReplicatorController",
+        "SoundController",
+        "TeleportController"
+    },
+
+    DISABLED_SERVICES = {
+        "ChatService",
+        "DataService",
+        "IdleService",
+        "LeaderstatService",
+        "RemoteService",
+        "ReplicatorService",
+        "TeleportService",
+    }
 }
