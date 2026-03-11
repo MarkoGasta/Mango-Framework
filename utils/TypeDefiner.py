@@ -8,18 +8,12 @@ config = {
         project_root + 'src\\ReplicatedStorage\\Controllers',
         project_root + 'src\\ReplicatedStorage\\Settings',
         project_root + 'src\\ReplicatedStorage\\Resources',
-        project_root + 'src\\ReplicatedStorage\\Packages',
-        project_root + 'src\\ReplicatedStorage\\MangoControllers',
-        project_root + 'src\\ReplicatedStorage\\MangoResources'
     ],
     project_root + 'src\\ServerStorage\\MangoServer\\Types.luau': [
         project_root + 'src\\ServerStorage\\Services',
-        project_root + 'src\\ServerStorage\\MangoServices',
         project_root + 'src\\ServerStorage\\Resources',
-        project_root + 'src\\ReplicatedStorage\\Packages',
         project_root + 'src\\ReplicatedStorage\\Settings',
         project_root + 'src\\ReplicatedStorage\\Resources\\Shared',
-        project_root + 'src\\ReplicatedStorage\\MangoResources\\Shared'
     ],
 }
 
