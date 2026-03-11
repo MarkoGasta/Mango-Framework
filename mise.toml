@@ -1,0 +1,9 @@
+[tools]
+"cargo:https://github.com/Quenty/rojo.git" = "latest"
+"cargo:https://github.com/UpliftGames/wally.git" = { version = "tag:v0.3.2",  crate = "wally" }
+"cargo:selene" = "latest"
+
+[tasks.defineTypes]
+description = "Generate Types.luau files for enabling passing module types."
+run = "python ./TypeDefiner.py"
+silent = true
