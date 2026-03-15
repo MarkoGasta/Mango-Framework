@@ -32,9 +32,7 @@ function InterfaceController.__Construct()
     local MangoClient = require(ReplicatedStorage:WaitForChild("MangoClient"))
     local SubmoduleUtils = MangoClient.Require("SubmoduleUtils")
     local DeviceUtils = MangoClient.Require("DeviceUtils")
-    local TableUtils = MangoClient.Require("TableUtils")
     local FastSignal = MangoClient.Require("FastSignal")
-    local Connector = MangoClient.Require("Connector")
     local Logger = MangoClient.Require("Logger")
     local RuntimeSettings = MangoClient.Require("RuntimeSettings")
 
@@ -44,11 +42,10 @@ function InterfaceController.__Construct()
     --// CONSTANTS \--
     local PlayerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
     local GuiStorage = ReplicatedStorage:WaitForChild("Interface")
-    local SubmoduleStorage = ReplicatedStorage.MangoSubmodules.InterfaceController
     local InterfaceContainers = {
-        SubmoduleStorage.InterfaceHandlers,
-        SubmoduleStorage.InterfaceHelpers,
-        SubmoduleStorage.MangoInterfaceHelpers,
+        script.InterfaceHandlers,
+        script.InterfaceHelpers,
+        script.MangoInterfaceHelpers,
     }
     
     --// VARIABLES \--
@@ -58,7 +55,6 @@ function InterfaceController.__Construct()
     local dynamicFrameFlagHandlerCache = {}
     local openDynamicFrames = {}
     local groupDynamicFrames = {}
-    local objectDynamicScalers = {}
 
     --// FUNCTIONS \--
 
@@ -382,7 +378,7 @@ function InterfaceController.__Construct()
         --// EXPORTS \--
         
         --// RUNTIME \--
-        SubmoduleUtils.InitializeChildrenSubmodules(SubmoduleStorage.DynamicFrameFlagHandlers)
+        SubmoduleUtils.InitializeChildrenSubmodules(script.DynamicFrameFlagHandlers)
         InitializeInterfaceSubmodules()
     end
 
@@ -399,7 +395,7 @@ function InterfaceController.__Construct()
     --// RUNTIME \--
     CreateMainGui()
 
-    SubmoduleUtils.ConstructChildrenSubmodules(SubmoduleStorage.DynamicFrameFlagHandlers, {
+    SubmoduleUtils.ConstructChildrenSubmodules(script.DynamicFrameFlagHandlers, {
         ConstructionArguments = {InterfaceController.MainGui},
         Cache = dynamicFrameFlagHandlerCache,
     })

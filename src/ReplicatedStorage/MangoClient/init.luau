@@ -37,7 +37,6 @@ local MODULE_CONTAINERS = {
     ReplicatedStorage:WaitForChild("Resources"),
     ReplicatedStorage:WaitForChild("MangoControllers"),
     ReplicatedStorage:WaitForChild("MangoResources"),
-    ReplicatedStorage:WaitForChild("Packages"),
 }
 
 --// MODULES \\--

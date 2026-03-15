@@ -41,7 +41,6 @@ function DataService.__Construct()
     local IsStudio = RunService:IsStudio()
     local DataTemplate = (IsStudio and USE_TEST_DATA) and DataSettings.TEST_DATA_TEMPLATE or DataSettings.DATA_TEMPLATE
     local ProfileStore = ProfileService.GetProfileStore(`PlayerData_v{DataSettings.DATA_VERSION}`, DataTemplate)
-    local SubmoduleStorage = ServerStorage.MangoSubmodules.DataService
 
     local GetOrderedDataOptionsDefaults: GetOrderedDataOptions = {
         Ascending = false,
@@ -54,7 +53,7 @@ function DataService.__Construct()
     local playerProfiles = {}
     local loadedStores = {}
     local loadedOrderedStores = {}
-    local selfUpdatingFieldHandlers = {}
+    local genericFieldHandlers = {}
 
     --// FUNCTIONS \--
 
@@ -100,8 +99,8 @@ function DataService.__Construct()
         end
     end
 
-    local function CallAllSelfUpdatingFieldHandlers(player: Player, profile: table, handlerFunctionName: string)
-        for _, handler: table in selfUpdatingFieldHandlers do
+    local function CallAllGenericFieldHandlers(player: Player, profile: table, handlerFunctionName: string)
+        for _, handler: table in genericFieldHandlers do
             if typeof(handler[handlerFunctionName]) == "function" then
                 local callSuccess, callResponse = xpcall(handler[handlerFunctionName], Logger.error, player, profile)
                 if not callSuccess then
@@ -175,7 +174,7 @@ function DataService.__Construct()
             playerProfile:AddUserId(player.UserId)
             playerProfile:Reconcile()
             playerProfiles[player.UserId] = playerProfile
-            CallAllSelfUpdatingFieldHandlers(player, playerProfile, "HandlePlayerProfileLoaded")
+            CallAllGenericFieldHandlers(player, playerProfile, "HandlePlayerProfileLoaded")
 
             Logger.info(`Successfully loaded {player.Name}'s profile!`)
         else
@@ -194,7 +193,7 @@ function DataService.__Construct()
     local function PlayerRemoving(player: Player)
         local playerProfile = playerProfiles[player.UserId]
         if playerProfile then
-            CallAllSelfUpdatingFieldHandlers(player, playerProfile, "HandlePlayerProfileUnloading")
+            CallAllGenericFieldHandlers(player, playerProfile, "HandlePlayerProfileUnloading")
             playerProfile:Release()
             playerProfiles[player.UserId] = nil
         end
@@ -492,8 +491,8 @@ function DataService.__Construct()
         LoadOrderedDataStore(orderedStoreName)
     end
 
-    SubmoduleUtils.BuildChildrenSubmodules(SubmoduleStorage.SelfUpdatingFieldHandlers, {
-        Cache = selfUpdatingFieldHandlers,
+    SubmoduleUtils.BuildChildrenSubmodules(script.GenericFieldHandlers, {
+        Cache = genericFieldHandlers,
     })
 
     RemoteService.CreateRemoteEvent("DATA_SERVICE_SYNC_DATA")
