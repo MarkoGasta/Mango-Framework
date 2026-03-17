@@ -20,9 +20,10 @@ function ReplicatorService.__Construct()
     local ReplicatorSettings = MangoServer.Require("ReplicatorSettings")
 
     --// TYPES \\--
+    type ReplicaScope = "ALL" | Player | { Player }
     type AssignReplicaOptions = {
         ClassIdentifier: string?,
-        ReplicationScope: string | Player | { Player } | nil,
+        ReplicationScope: ReplicaScope?,
         IgnorePrivateFields: boolean?,
         FilterMode: "WHITELIST" | "BLACKLIST",
         FilterList: { string }?,
@@ -82,7 +83,7 @@ function ReplicatorService.__Construct()
         elseif typeof(replica.Options.ReplicationScope) == "table" then
             return replica.Options.ReplicationScope
         else
-            Logger.warn(`Invalid replication scope. No replication targets found!`)
+            Logger.warn(`Invalid replication scope. Expected "ALL", Player instance, or array of Players. Got {replica.Options.ReplicationScope}`)
             return {}
         end
     end
@@ -105,6 +106,24 @@ function ReplicatorService.__Construct()
         RemoteService.FireClients(replicationTargets, classRemoteName, replica.Class, replica.Id, replica.stagedChanges)
 
         table.clear(replica.stagedChanges)
+    end
+
+    --[=[
+        Syncs changes for a replica based on its root instance.
+
+        ### Parameters:
+        ```luau
+        instance: table -- The root instance of the replica to sync.
+        ```
+    ]=]
+    local function SyncInstanceChanges(instance: table): ()
+        local replica = GetReplicaByRootInstance(instance)
+        if not replica then
+            Logger.warn(`Failed to sync instance changes. No replica found for the given instance.`)
+            return
+        end
+
+        SyncReplicaChanges(replica)
     end
 
     --[=[
@@ -222,6 +241,65 @@ function ReplicatorService.__Construct()
     end
 
     --[=[
+        Unassigns a replica for a specific set of players.
+
+        ### Parameters:
+        ```luau
+        replica: table -- The replica to unassign.
+        players: {Player} -- The players that should receive replica destroy notifications.
+        ```
+    ]=]
+    local function UnassigneReplicaFromPlayers(replica: table, players: {Player})
+        local classReplicaDestroyedRemoteName = string.format(ReplicatorSettings.CLASS_REPLICA_DESTROYED_REMOTE_NAME_FORMAT, replica.Class)
+        RemoteService.FireClients(players, classReplicaDestroyedRemoteName, replica.Class, replica.Id)
+    end
+
+    --[=[
+        Assigns a replica to a specific set of players.
+
+        ### Parameters:
+        ```luau
+        replica: table -- The replica to assign.
+        players: {Player} -- The players that should receive replica assignment data.
+        ```
+    ]=]
+    local function AssignReplicaToPlayers(replica: table, players: {Player})
+        local classReplicaAssignedRemoteName = string.format(ReplicatorSettings.CLASS_REPLICA_ASSIGNED_REMOTE_NAME_FORMAT, replica.Class)
+        local replicableReplicaInstance = TableUtils.CopyTable(replica, {
+            RemoveCyclic = true,
+        })
+        
+        RemoteService.FireClients(players, classReplicaAssignedRemoteName, replica.Class, replicableReplicaInstance)
+    end
+
+    --[=[
+        Redefining the replication scope of a replica by unassigning it from players outside the new scope and assigning it to players within the new scope.
+
+        ### Parameters:
+        ```luau
+        replica: table -- The replica whose scope is being changed.
+        newScope: ReplicaScope -- The new replication scope to apply.
+        ```
+    ]=]
+    local function RedefineReplicaScope(replicaInstance: table, newScope: ReplicaScope)
+        local replica = GetReplicaByRootInstance(replicaInstance)
+        if not replica then
+            Logger.warn(`Failed to redefine replica scope. No replica found for the given instance.`)
+            return
+        end
+
+        local previousScopeTargets = GetReplicationTargets(replica)
+        replica.Options.ReplicationScope = newScope
+        local currentScopeTargets = GetReplicationTargets(replica)
+        local scopeExceptions = TableUtils.ArrayExceptions(previousScopeTargets, currentScopeTargets)
+        local oldScopeTargets = TableUtils.ArrayIntersection(scopeExceptions, previousScopeTargets)
+        local newScopeTargets = TableUtils.ArrayIntersection(scopeExceptions, currentScopeTargets)
+
+        UnassigneReplicaFromPlayers(replica, oldScopeTargets)
+        AssignReplicaToPlayers(replica, newScopeTargets)
+    end
+
+    --[=[
         Destroys a replica and notifies clients.
 
         ### Parameters:
@@ -230,10 +308,7 @@ function ReplicatorService.__Construct()
         ```
     ]=]
     local function DestroyReplica(replica: table)
-        local replicationTargets = GetReplicationTargets(replica)
-        local classReplicaDestroyedRemoteName = string.format(ReplicatorSettings.CLASS_REPLICA_DESTROYED_REMOTE_NAME_FORMAT, replica.Class)
-        RemoteService.FireClients(replicationTargets, classReplicaDestroyedRemoteName, replica.Class, replica.Id)
-
+        UnassigneReplicaFromPlayers(replica, GetReplicationTargets(replica))
         replica.RootInstance[ReplicatorSettings.ROOT_INSTANCE_REPLICA_KEY] = nil
         replicaCache[replica.Id] = nil
     end
@@ -332,13 +407,8 @@ function ReplicatorService.__Construct()
 
         local newReplicaInstance, newReplica = CreateReplica(instance, options)
         local replicationTargets = GetReplicationTargets(newReplica)
-        local replicableReplicaInstance = TableUtils.CopyTable(newReplica, {
-            RemoveCyclic = true,
-        })
-
-        local classReplicateAssignedRemoteName = string.format(ReplicatorSettings.CLASS_REPLICA_ASSIGNED_REMOTE_NAME_FORMAT, options.ClassIdentifier)
-        RemoteService.FireClients(replicationTargets, classReplicateAssignedRemoteName, options.ClassIdentifier, replicableReplicaInstance)
-
+        AssignReplicaToPlayers(newReplica, replicationTargets)
+        
         return newReplicaInstance, newReplica
     end
 
@@ -390,7 +460,8 @@ function ReplicatorService.__Construct()
     --// EXPORTS \\--
     ReplicatorService.__Init = Init
     ReplicatorService.DefineReplicaClass = DefineReplicaClass
-    ReplicatorService.SyncReplicaChanges = SyncReplicaChanges
+    ReplicatorService.SyncInstanceChanges = SyncInstanceChanges
+    ReplicatorService.RedefineReplicaScope = RedefineReplicaScope
     ReplicatorService.UnassignReplica = UnassignReplica
     ReplicatorService.AssignReplica = AssignReplica
 
