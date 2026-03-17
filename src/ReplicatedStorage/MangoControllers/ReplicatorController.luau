@@ -190,7 +190,7 @@ function ReplicatorController.__Construct()
             replicaData[key] = value
         end
 
-        classData[classIdentifier].__UpdatedSignal:Fire(replicaData.RootInstance)
+        classData[classIdentifier].__UpdatedSignal:Fire(replicaData.RootInstance, replicaChanges)
     end
     
     --[=[
