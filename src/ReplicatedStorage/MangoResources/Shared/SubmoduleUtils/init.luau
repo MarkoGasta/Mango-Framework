@@ -1,0 +1,539 @@
+--[[
+-----------------------------------------------------------------------------
+Last Updated - 5 Jan 2025
+Copyright 2025 MarkoGasta @ Studio Blackout
+
+Permission is hereby granted, free of charge, to any person obtaining a
+copy of this software and associated documentation files (the“Software”),
+to deal in the Software without restriction, including without
+limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Software, and to permit persons to
+whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included
+in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+-----------------------------------------------------------------------------
+]]--
+
+--// SERVICES \\--
+
+--// CONFIG \\--
+local TEMPLATE_TOKEN = "TEMPLATE"
+
+--// MODULES \\--
+local TableUtils = require(script.TableUtils)
+
+--// TYPES \\--
+type FilterType = "Whitelist" | "Blacklist"
+type ConstructSubmoduleOptions = {
+    __IgnoreInitialization: boolean?,
+    FilterType: FilterType?,
+    Filter: {string}?,
+    ConstructionMethod: string,
+    ConstructionArguments: {any}?,
+    ExcludeTemplates: boolean?,
+    Cache: table?,
+}
+
+type InitializeSubmoduleOptions = {
+    __IgnoreConstruction: boolean?,
+    FilterType: FilterType?,
+    Filter: {string}?,
+    InitializationMethod: string,
+    InitializationArguments: {any}?,
+    ExcludeTemplates: boolean?,
+    Cache: table?,
+}
+
+type BuildSubmoduleOptions = {
+    FilterType: FilterType?,
+    Filter: {string}?,
+    ConstructionArguments: {any}?,
+    InitializationArguments: {any}?,
+    ConstructionMethod: string,
+    InitializationMethod: string,
+    ExcludeTemplates: boolean?,
+    Cache: table?,
+}
+
+--// CONSTANTS \\--
+local ConstructSubmoduleOptionDefaults: ConstructSubmoduleOptions = {
+    __IgnoreInitialization = true,
+    FilterType = nil,
+    Filter = nil,
+    ConstructionMethod = nil,
+    ConstructionArguments = {},
+    ExcludeTemplates = true,
+    Cache = {},
+}
+
+local InitializeSubmoduleOptionDefaults: InitializeSubmoduleOptions = {
+    __IgnoreConstruction = true,
+    FilterType = nil,
+    Filter = nil,
+    InitializationMethod = nil,
+    InitializationArguments = {},
+    ExcludeTemplates = true,
+    Cache = {},
+}
+
+local BuildSubmoduleOptionDefaults: BuildSubmoduleOptions = {
+    FilterType = nil,
+    Filter = nil,
+    ConstructionArguments = {},
+    InitializationArguments = {},
+    ConstructionMethod = nil,
+    InitializationMethod = nil,
+    ExcludeTemplates = true,
+    Cache = {},
+}
+
+--// VARIABLES \\--
+local submoduleUtils = {}
+
+--// FUNCTIONS \\--
+local LogError: (message: string) -> nil
+local DefineConstructionMethodName: (methodName: string) -> nil
+local DefineInitializationMethodName: (methodName: string) -> nil
+local ApplyFilter: (submodules: {ModuleScript}, filterType: FilterType, filter: {string}) -> boolean
+local ExcludeTemplates: (submodules: {ModuleScript}) -> number
+local VerifyOptions: (options: table) -> boolean
+local ConstructSubmodule: (submoduleReturn: any, options: BuildSubmoduleOptions) -> boolean
+local InitializeSubmodule: (submoduleReturn: any, options: BuildSubmoduleOptions) -> boolean
+local ConstructSubmodules: (submodules: {ModuleScript}, options: ConstructSubmoduleOptions?) -> (boolean, {table}?)
+local InitializeSubmodules: (submodules: {ModuleScript}, options: InitializeSubmoduleOptions?) -> (boolean, {table}?)
+local BuildSubmodules: (submodules: {ModuleScript}, options: BuildSubmoduleOptions?) -> (boolean, {table}?)
+local BuildArraySubmodules: (submodules: {ModuleScript}, options: BuildSubmoduleOptions?) -> (boolean, {table}?)
+local ConstructArraySubmodules: (submodules: {ModuleScript}, options: ConstructSubmoduleOptions?) -> (boolean, {table}?)
+local InitializeArraySubmodules: (submodules: {ModuleScript}, options: InitializeSubmoduleOptions?) -> (boolean, {table}?)
+local BuildChildrenSubmodules: (parent: Instance, options: BuildSubmoduleOptions?) -> (boolean, {table}?)
+local ConstructChildrenSubmodules: (parent: Instance, options: ConstructSubmoduleOptions?) -> (boolean, {table}?)
+local InitializeChildrenSubmodules: (parent: Instance, options: InitializeSubmoduleOptions?) -> (boolean, {table}?)
+
+--[=[
+    Logs an error message to the console with a SubmoduleUtils prefix.
+
+    ### Parameters:
+    ```luau
+    message: string -- The error message to log.
+    ```
+]=]
+LogError = function(message: string)
+    warn(`[SubmoduleUtils] {message}\nTraceback:{debug.traceback("", 2)}`)
+end
+
+--[=[
+    Sets the default construction method name for submodules.
+
+    ### Parameters:
+    ```luau
+    methodName: string -- The name of the method to use for constructing submodules.
+    ```
+]=]
+DefineConstructionMethodName = function(methodName)
+    ConstructSubmoduleOptionDefaults.ConstructionMethod = methodName
+    BuildSubmoduleOptionDefaults.ConstructionMethod = methodName
+end
+
+--[=[
+    Sets the default initialization method name for submodules.
+
+    ### Parameters:
+    ```luau
+    methodName: string -- The name of the method to use for initializing submodules.
+    ```
+]=]
+DefineInitializationMethodName = function(methodName)
+    InitializeSubmoduleOptionDefaults.InitializationMethod = methodName
+    BuildSubmoduleOptionDefaults.InitializationMethod = methodName
+end
+
+ApplyFilter = function(submodules, filterType, filter)
+    if filterType == "Whitelist" then
+        for submoduleIndex = #submodules, 1, -1 do
+            local submodule = submodules[submoduleIndex]
+            if not table.find(filter, submodule.Name) then
+                table.remove(submodules, submoduleIndex)
+            end
+        end
+
+        return true
+    elseif filterType == "Blacklist" then
+        for submoduleIndex = #submodules, 1, -1 do
+            local submodule = submodules[submoduleIndex]
+            if table.find(filter, submodule.Name) then
+                table.remove(submodules, submoduleIndex)
+            end
+        end
+
+        return true
+    else
+        return false
+    end
+end
+
+ExcludeTemplates = function(submodules)
+    local removedCount = 0
+    for submoduleIndex = #submodules, 1, -1 do
+        local submodule = submodules[submoduleIndex]
+        if string.find(string.lower(submodule.Name), string.lower(TEMPLATE_TOKEN)) then
+            table.remove(submodules, submoduleIndex)
+        end
+    end
+
+    return removedCount
+end
+
+VerifyOptions = function(options)
+    if not options.__IgnoreConstruction and not options.ConstructionMethod then
+        LogError("Construction method name is not defined. Define it using DefineConstructionMethodName. Cannot build submodules.")
+        return false
+    end
+
+    if not options.__IgnoreInitialization and not options.InitializationMethod then
+        LogError("Initialization method name is not defined. Define it using DefineInitializationMethodName. Cannot build submodules.")
+        return false
+    end
+
+    if options.FilterType and options.Filter then
+        if typeof(options.FilterType) ~= "string" then
+            LogError("FilterType must be a string")
+            return false
+        end
+
+        if typeof(options.Filter) ~= "table" then
+            LogError("Filter must be a table of strings")
+            return false
+        end
+    end
+
+    return true
+end
+
+--[=[
+    Constructs a submodule by calling its construction method with specified options.
+
+    ### Parameters:
+    ```luau
+    submoduleReturn: any -- The return value of requiring the submodule.
+    options: BuildSubmoduleOptions -- The options containing the construction method name and arguments.
+    ```
+
+    ### Returns:
+    ```luau
+    boolean -- Returns true if construction was successful, false otherwise.
+    ```
+]=]
+ConstructSubmodule = function(submoduleReturn, options)
+    if not submoduleReturn then
+        LogError("Attempted to construct a nil submodule")
+        return false
+    end
+
+    if not submoduleReturn[options.ConstructionMethod] then
+        LogError(`Submodule is missing the construction method`)
+        return false
+    end
+
+    local constructionSuccess = xpcall(submoduleReturn[options.ConstructionMethod], LogError, unpack(options.ConstructionArguments))
+    if not constructionSuccess then
+        return false
+    end
+
+    return true
+end
+
+--[=[
+    Initializes a submodule by calling its initialization method with specified options.
+
+    ### Parameters:
+    ```luau
+    submoduleReturn: any -- The return value of requiring the submodule.
+    options: BuildSubmoduleOptions -- The options containing the initialization method name and arguments.
+    ```
+
+    ### Returns:
+    ```luau
+    boolean -- Returns true if initialization was successful, false otherwise.
+    ```
+]=]
+InitializeSubmodule = function(submoduleReturn, options)
+    if not submoduleReturn then
+        LogError("Attempted to initialize a nil submodule")
+        return false
+    end
+
+    if not submoduleReturn[options.InitializationMethod] then
+        LogError(`Submodule is missing the initialization method`)
+        return false
+    end
+
+    local initializationSuccess = xpcall(submoduleReturn[options.InitializationMethod], LogError, unpack(options.InitializationArguments))
+    if not initializationSuccess then
+        return false
+    end
+
+    return true
+end
+
+ConstructSubmodules = function(submodules, options)
+    if not VerifyOptions(options) then
+        return false
+    end
+
+    for submoduleIndex = #submodules, 1, -1 do
+        local submodule = submodules[submoduleIndex]
+        if typeof(submodule) ~= "Instance" or not submodule:IsA("ModuleScript") then
+            table.remove(submodules, submoduleIndex)
+        end
+    end
+
+    -- Apply filtering based on options.
+    if options.FilterType and options.Filter then
+        local filterApplied = ApplyFilter(submodules, options.FilterType, options.Filter)
+        if not filterApplied then
+            LogError("FilterType is not a valid filter type.")
+            return false
+        end
+    end
+
+    ExcludeTemplates(submodules)
+
+    for _, submodule: ModuleScript in submodules do
+        local submoduleName = submodule.Name
+        local submoduleRequired = require(submodule)
+
+        local constructionSuccess = ConstructSubmodule(submoduleRequired, options)
+        if not constructionSuccess then
+            LogError(`Failed to construct submodule {submoduleName}, continuing without it`)
+            continue
+        end
+
+        options.Cache[submoduleName] = submoduleRequired
+    end
+
+    return true, options.Cache
+end
+
+InitializeSubmodules = function(submodules, options)
+    if not VerifyOptions(options) then
+        return false
+    end
+
+    for submoduleIndex = #submodules, 1, -1 do
+        local submodule = submodules[submoduleIndex]
+        if typeof(submodule) ~= "Instance" or not submodule:IsA("ModuleScript") then
+            table.remove(submodules, submoduleIndex)
+        end
+    end
+
+    -- Apply filtering based on options.
+    if options.FilterType and options.Filter then
+        local filterApplied = ApplyFilter(submodules, options.FilterType, options.Filter)
+        if not filterApplied then
+            LogError("FilterType is not a valid filter type.")
+            return false
+        end
+    end
+
+    ExcludeTemplates(submodules)
+
+    for _, submodule: ModuleScript in submodules do
+        local submoduleName = submodule.Name
+        local submoduleRequired = require(submodule)
+
+        local initializationSuccess = InitializeSubmodule(submoduleRequired, options)
+        if not initializationSuccess then
+            LogError(`Failed to initialize submodule {submoduleName}, continuing without it`)
+            continue
+        end
+
+        options.Cache[submoduleName] = submoduleRequired
+    end
+
+    return true, options.Cache
+end
+
+--[=[
+    Builds submodules for a given parent instance based on specified options.
+
+    ### Parameters:
+    ```luau
+    parent: Instance -- The parent instance to build submodules under.
+    options: BuildSubmoduleOptions? -- Optional configuration for submodule construction and initialization.
+    ```
+
+    ### Returns:
+    ```luau
+    boolean -- Returns true if submodules were successfully built, false otherwise.
+    {table}? -- A table containing the built submodules, or nil if building failed.
+    ```
+]=]
+BuildSubmodules = function(submodules, options)
+    if not VerifyOptions(options) then
+        return false
+    end
+
+    for submoduleIndex = #submodules, 1, -1 do
+        local submodule = submodules[submoduleIndex]
+        if typeof(submodule) ~= "Instance" or not submodule:IsA("ModuleScript") then
+            table.remove(submodules, submoduleIndex)
+        end
+    end
+
+    -- Apply filtering based on options.
+    if options.FilterType and options.Filter then
+        local filterApplied = ApplyFilter(submodules, options.FilterType, options.Filter)
+        if not filterApplied then
+            LogError("FilterType is not a valid filter type.")
+            return false
+        end
+    end
+
+    ExcludeTemplates(submodules)
+
+    local builtSubmodules = options.Cache
+    for _, submodule: ModuleScript in submodules do
+        local submoduleName = submodule.Name
+        local submoduleRequired = require(submodule)
+
+        local constructionSuccess = ConstructSubmodule(submoduleRequired, options)
+        if not constructionSuccess then
+            LogError(`Failed to construct submodule {submoduleName}, continuing without it`)
+            continue
+        end
+
+        local initializationSuccess = InitializeSubmodule(submoduleRequired, options)
+        if not initializationSuccess then
+            LogError(`Failed to initialize submodule {submoduleName}, continuing without it`)
+            continue
+        end
+
+        builtSubmodules[submoduleName] = submoduleRequired
+    end
+
+    return true, builtSubmodules
+end
+
+ConstructArraySubmodules = function(submodules, options)
+    options = if options
+        then TableUtils.MergeDictionaries(options, ConstructSubmoduleOptionDefaults)
+        else ConstructSubmoduleOptionDefaults
+
+    return ConstructSubmodules(submodules, options)
+end
+
+InitializeArraySubmodules = function(submodules, options)
+    options = if options
+        then TableUtils.MergeDictionaries(options, InitializeSubmoduleOptionDefaults)
+        else InitializeSubmoduleOptionDefaults
+
+    return InitializeSubmodules(submodules, options)
+end
+
+--[=[
+    Builds submodules from an array of ModuleScripts based on specified options.
+
+    ### Parameters:
+    ```luau
+    submodules: {ModuleScript} -- An array of ModuleScripts to build.
+    options: BuildSubmoduleOptions? -- Optional configuration for submodule construction and initialization.
+    ```
+
+    ### Returns:
+    ```luau
+    boolean -- Returns true if submodules were successfully built, false otherwise.
+    {table}? -- A table containing the built submodules, or nil if building failed.
+    ```
+]=]
+BuildArraySubmodules = function(submodules, options)
+    options = if options
+        then TableUtils.MergeDictionaries(options, BuildSubmoduleOptionDefaults)
+        else BuildSubmoduleOptionDefaults
+
+    return BuildSubmodules(submodules, options)
+end
+
+ConstructChildrenSubmodules = function(parent, options)
+    options = if options
+        then TableUtils.MergeDictionaries(options, ConstructSubmoduleOptionDefaults)
+        else ConstructSubmoduleOptionDefaults
+
+    if not parent or typeof(parent) ~= "Instance" then
+        LogError("Parent must be a valid Instance to construct child submodules.")
+        return false
+    end
+
+    local submodules = parent:GetChildren()
+    return ConstructSubmodules(submodules, options)
+end
+
+InitializeChildrenSubmodules = function(parent, options)
+    options = if options
+        then TableUtils.MergeDictionaries(options, InitializeSubmoduleOptionDefaults)
+        else InitializeSubmoduleOptionDefaults
+
+    if not parent or typeof(parent) ~= "Instance" then
+        LogError("Parent must be a valid Instance to initialize child submodules.")
+        return false
+    end
+
+    local submodules = parent:GetChildren()
+    return InitializeSubmodules(submodules, options)
+end
+
+--[=[
+    Builds all child ModuleScripts under the given parent using the
+    configured construction/initialization methods and options.
+
+    ### Parameters:
+    ```luau
+    parent: Instance -- The parent instance to scan for child modules.
+    options: {
+        FilterType: BuildFilterType?, -- Optional filter type for including/excluding modules.
+        Filter: {string}?, -- Optional list of module names to include/exclude based on the filter type.
+        ConstructionArguments: {any}?, -- Optional arguments to pass to the construction method.
+        InitializationArguments: {any}?, -- Optional arguments to pass to the initialization method.
+    }?   -- Optional overrides for build behavior.
+    ```
+
+    ### Returns:
+    ```luau
+    boolean -- Returns true if submodules were successfully built, false otherwise.
+    {table}? -- A table containing the built submodules, or nil if building failed.
+    ```
+]=]
+BuildChildrenSubmodules = function(parent, options)
+    options = if options
+        then TableUtils.MergeDictionaries(options, BuildSubmoduleOptionDefaults)
+        else BuildSubmoduleOptionDefaults
+
+    if not parent or typeof(parent) ~= "Instance" then
+        LogError("Parent must be a valid Instance to build child submodules.")
+        return false
+    end
+
+    local submodules = parent:GetChildren()
+    return BuildSubmodules(submodules, options)
+end
+
+--// EXPORTS \\--
+submoduleUtils.DefineConstructionMethodName = DefineConstructionMethodName
+submoduleUtils.DefineInitializationMethodName = DefineInitializationMethodName
+submoduleUtils.ConstructArraySubmodules = ConstructArraySubmodules
+submoduleUtils.InitializeArraySubmodules = InitializeArraySubmodules
+submoduleUtils.BuildArraySubmodules = BuildArraySubmodules
+submoduleUtils.ConstructChildrenSubmodules = ConstructChildrenSubmodules
+submoduleUtils.InitializeChildrenSubmodules = InitializeChildrenSubmodules
+submoduleUtils.BuildChildrenSubmodules = BuildChildrenSubmodules
+
+--// RUNTIME \\--
+return submoduleUtils
