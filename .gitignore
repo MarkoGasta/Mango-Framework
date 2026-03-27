@@ -1,4 +1,13 @@
-mise.toml
-utils
+# Evirnonment
 .github
 .vscode
+
+# Configuration
+mise.toml
+wally.toml
+wally.lock
+selene.toml
+aftman.toml
+
+# Utilities
+utils
