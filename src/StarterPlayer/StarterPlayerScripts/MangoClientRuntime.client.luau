@@ -35,7 +35,7 @@ local PROGRES_LOGGING = true
 local GAME_CONTROLLER_REQUIRED = true
 local CONTROLLER_CONTAINERS = {
     ReplicatedStorage:WaitForChild("Controllers"),
-    ReplicatedStorage:WaitForChild("MangoControllers"),
+    -- ReplicatedStorage:WaitForChild("MangoControllers"),
 }
 
 --// MODULES \\--
