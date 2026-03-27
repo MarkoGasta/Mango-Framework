@@ -3,11 +3,13 @@
 .vscode
 
 # Configuration
-mise.toml
-wally.toml
-wally.lock
 selene.toml
-aftman.toml
 
 # Utilities
 utils
+
+# Build files
+*.rbxlx
+*.rbxlx.lock
+*.rbxl
+*.rbxk.lock
