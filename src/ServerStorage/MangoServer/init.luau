@@ -35,10 +35,9 @@ local MODULE_WAIT_TIMEOUT = 10
 local MODULE_CONTAINERS = {
 	ServerStorage:WaitForChild("Services"),
 	ServerStorage:WaitForChild("Resources"),
-    ServerStorage:WaitForChild("MangoServices"),
-    ServerStorage:WaitForChild("MangoResources"),
+    -- ServerStorage:WaitForChild("MangoServices"),
+    -- ServerStorage:WaitForChild("MangoResources"),
 	ReplicatedStorage:WaitForChild("Settings"),
-    ReplicatedStorage:WaitForChild("Packages"),
 	ReplicatedStorage:WaitForChild("Resources"):WaitForChild("Shared"),
 	ReplicatedStorage:WaitForChild("MangoResources"):WaitForChild("Shared"),
 }
@@ -50,7 +49,6 @@ local RuntimeSettings: table?
 --// TYPES \\--
 
 --// CONSTANTS \\--
-local SubmoduleStorage = ServerStorage.MangoSubmodules.MangoServer
 local MangoServer = {
     Global = {},
     PlayerCache = {},
@@ -58,7 +56,7 @@ local MangoServer = {
 
 --// VARIABLES \\--
 local moduleCache = {}
-local generalCacheFieldHandlers = {}
+local cacheFieldHandlers = {}
 
 --// FUNCTIONS \\--
 
@@ -84,15 +82,15 @@ end
 	handlerFunctionName: string -- The name of the handler function to call on each handler.
 	```
 ]=]
-local function CallGeneralCacheFieldHandlers(player: Player, cache: table, handlerFunctionName: string)
-    for _, handler: table in generalCacheFieldHandlers do
+local function CallCacheFieldHandlers(player: Player, cache: table, handlerFunctionName: string)
+    for _, handler: table in cacheFieldHandlers do
         if typeof(handler[handlerFunctionName]) == "function" then
             local callSuccess = xpcall(handler[handlerFunctionName], LogError, player, cache)
             if not callSuccess then
-                LogError(`Failed to call general cache field handler function {handlerFunctionName}.`)
+                LogError(`Failed to call cache field handler function {handlerFunctionName}.`)
             end
         else
-            LogError(`General cache field handler does not have function {handlerFunctionName}.`)
+            LogError(`Cache field handler does not have function {handlerFunctionName}.`)
         end
     end
 end
@@ -220,7 +218,7 @@ end
 local function PlayerAdded(player: Player)
     local newPlayerCache = {}
     MangoServer.PlayerCache[player] = newPlayerCache
-    CallGeneralCacheFieldHandlers(player, newPlayerCache, "PlayerCacheCreated")
+    CallCacheFieldHandlers(player, newPlayerCache, "PlayerCacheCreated")
 end
 
 -- Handles player leaving the game.
@@ -237,8 +235,8 @@ MangoServer.Global.__InitializationMethod = RuntimeSettings.INITIALIZATION_METHO
 local SubmoduleUtils = Require("SubmoduleUtils")
 SubmoduleUtils.DefineConstructionMethodName(RuntimeSettings.CONSTRUCTION_METHOD)
 SubmoduleUtils.DefineInitializationMethodName(RuntimeSettings.INITIALIZATION_METHOD)
-SubmoduleUtils.BuildChildrenSubmodules(SubmoduleStorage.GeneralCacheFieldHandlers, {
-    Cache = generalCacheFieldHandlers,
+SubmoduleUtils.BuildChildrenSubmodules(script.CacheFieldHandlers, {
+    Cache = cacheFieldHandlers,
 })
 
 for _, player: Player in Players:GetPlayers() do
