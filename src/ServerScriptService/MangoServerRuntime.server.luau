@@ -32,7 +32,7 @@ local PROGRES_LOGGING = true
 local GAME_SERVICE_REQUIRED = true
 local SERVICE_CONTAINERS = {
     ServerStorage:WaitForChild("Services"),
-    ServerStorage:WaitForChild("MangoServices")
+    -- ServerStorage:WaitForChild("MangoServices")
 }
 
 --// MODULES \\--
