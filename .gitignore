@@ -4,6 +4,7 @@
 
 # Configuration
 selene.toml
+mise.toml
 
 # Utilities
 utils
