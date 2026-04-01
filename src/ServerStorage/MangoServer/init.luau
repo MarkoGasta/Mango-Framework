@@ -44,7 +44,7 @@ local MODULE_CONTAINERS = {
 
 --// MODULES \\--
 local Types = require(script.Types)
-local RuntimeSettings: table?
+local RuntimeSettings
 
 --// TYPES \\--
 

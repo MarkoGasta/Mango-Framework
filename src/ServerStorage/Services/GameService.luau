@@ -12,6 +12,7 @@ function GameService.__Construct()
 
     --// MODULES \\--
     local MangoServer = require(ServerStorage:WaitForChild("MangoServer"))
+    local RemoteSerivce = MangoServer.Require("RemoteService")
     
     --// TYPES \\--
 
