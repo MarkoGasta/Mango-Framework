@@ -18,7 +18,7 @@ function ChatController.__Construct()
     --// TYPES \\--
 
     --// CONSTANTS \\--
-    local SystemTextChannel: TextChannel = TextChatService.TextChannels.RBXSystem
+    local SystemTextChannel: TextChannel = TextChatService:WaitForChild("TextChannels"):WaitForChild("RBXSystem")
     
     --// VARIABLES \\--
 
