@@ -35,8 +35,6 @@ local MODULE_WAIT_TIMEOUT = 10
 local MODULE_CONTAINERS = {
 	ServerStorage:WaitForChild("Services"),
 	ServerStorage:WaitForChild("Resources"),
-    -- ServerStorage:WaitForChild("MangoServices"),
-    -- ServerStorage:WaitForChild("MangoResources"),
 	ReplicatedStorage:WaitForChild("Settings"),
 	ReplicatedStorage:WaitForChild("Resources"):WaitForChild("Shared"),
 	ReplicatedStorage:WaitForChild("MangoResources"):WaitForChild("Shared"),
