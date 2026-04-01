@@ -22,7 +22,6 @@ function DataController.__Construct()
     
     --// VARIABLES \--
     local playerData = {}
-    local orderedStoreData = {}
 
     --// FUNCTIONS \--
 
@@ -51,19 +50,6 @@ function DataController.__Construct()
         DataController.DataUpdated:Fire(data)
     end
     
-    --[=[
-    	Synchronizes a specific ordered store data entry.
-
-    	### Parameters:
-    	```luau
-    	storeName: string -- The name of the ordered store.
-    	dataEntry: table -- The data entry to sync.
-    	```
-    ]=]
-    local function SyncOrderedStoreDataEntry(storeName: string, dataEntry: table)
-        orderedStoreData[storeName] = dataEntry
-        DataController.StoreDataUpdated:Fire(storeName, dataEntry)
-    end
 
     -- Initializes the service.
     local function Init()
@@ -87,13 +73,6 @@ function DataController.__Construct()
         SyncData(response)
     else
         Logger.warn("Failed to retrieve player data from server")
-    end
-
-    local getOrderedDataSuccess: boolean, getOrderedDataResponse: string | table = RemoteController.InvokeServer("DATA_CONTROLLER_GET_ORDERED_DATA")
-    if getOrderedDataSuccess then
-        for storeName: string, dataEntry: any in getOrderedDataResponse do
-            task.defer(SyncOrderedStoreDataEntry, storeName, dataEntry)
-        end
     end
 
     RemoteController.OnClientEvent("DATA_SERVICE_SYNC_DATA", SyncData)

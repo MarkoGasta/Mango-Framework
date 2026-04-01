@@ -11,8 +11,8 @@ function IdleService.__Construct()
     local Players = game:GetService("Players")
 
     --// CONFIG \\--
-    local IDLE_ACTIVATION_TIME = 10
-    local IDLE_CHECK_INTERVAL = 5
+    local IDLE_ACTIVATION_TIME = 120
+    local IDLE_CHECK_INTERVAL = 30
 
     --// MODULES \\--
     local MangoServer = require(ServerStorage:WaitForChild("MangoServer"))
@@ -44,17 +44,36 @@ function IdleService.__Construct()
     local function GetIsPlayerIdle(player: Player)
         return MangoServer.GetCacheField(player, "isIdle")
     end
-    
+
+    --[=[
+        Marks a player as active and emits the unidled signal.
+
+        ### Parameters:
+        ```luau
+        player: Player -- The player to clear from idle state.
+        ```
+    ]=]
     local function UnidlePlayer(player: Player)
         MangoServer.SetCacheField(player, "isIdle", false)
         IdleService.PlayerUnidled:Fire(player)
     end
 
+    --[=[
+        Marks a player as idle and emits the idled signal.
+
+        ### Parameters:
+        ```luau
+        player: Player -- The player to mark as idle.
+        ```
+    ]=]
     local function IdlePlayer(player: Player)
         MangoServer.SetCacheField(player, "isIdle", true)
         IdleService.PlayerIdled:Fire(player)
     end
-    
+
+    --[=[
+        Starts the background loop that tracks movement and toggles idle state.
+    ]=]
     local function StartIdleCheckThread()
         task.defer(function()
             while task.wait(IDLE_CHECK_INTERVAL) do

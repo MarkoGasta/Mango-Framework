@@ -28,6 +28,19 @@ function ReplicatorController.__Construct()
 
     --// FUNCTIONS \\--
 
+    --[=[
+            Returns the created signal for a replica class.
+
+            ### Parameters:
+            ```luau
+            classIdentifier: string -- Replica class identifier.
+            ```
+
+            ### Returns:
+            ```luau
+            typeof(FastSignal)? -- Created signal for the class when available.
+            ```
+    ]=]
     local function GetClassReplicaCreatedSignal(classIdentifier: string): typeof(FastSignal)
         if not classData[classIdentifier] then
             Logger.warn(`Requested created signal for undefined replica class {classIdentifier}.`)
@@ -37,6 +50,19 @@ function ReplicatorController.__Construct()
         return classData[classIdentifier].__CreatedSignal
     end
 
+    --[=[
+            Returns the updated signal for a replica class.
+
+            ### Parameters:
+            ```luau
+            classIdentifier: string -- Replica class identifier.
+            ```
+
+            ### Returns:
+            ```luau
+            typeof(FastSignal)? -- Updated signal for the class when available.
+            ```
+    ]=]
     local function GetClassReplicaUpdatedSignal(classIdentifier: string): typeof(FastSignal)
         if not classData[classIdentifier] then
             Logger.warn(`Requested updated signal for undefined replica class {classIdentifier}.`)
@@ -46,6 +72,19 @@ function ReplicatorController.__Construct()
         return classData[classIdentifier].__UpdatedSignal
     end
 
+    --[=[
+            Returns the destroyed signal for a replica class.
+
+            ### Parameters:
+            ```luau
+            classIdentifier: string -- Replica class identifier.
+            ```
+
+            ### Returns:
+            ```luau
+            typeof(FastSignal)? -- Destroyed signal for the class when available.
+            ```
+    ]=]
     local function GetClassReplicaDestroyedSignal(classIdentifier: string): typeof(FastSignal)
         if not classData[classIdentifier] then
             Logger.warn(`Requested destroyed signal for undefined replica class {classIdentifier}.`)
@@ -55,6 +94,19 @@ function ReplicatorController.__Construct()
         return classData[classIdentifier].__DestroyedSignal
     end
 
+    --[=[
+            Returns all root instances tracked for a replica class.
+
+            ### Parameters:
+            ```luau
+            classIdentifier: string -- Replica class identifier.
+            ```
+
+            ### Returns:
+            ```luau
+            {any}? -- List of replica root instances for the class.
+            ```
+    ]=]
     local function GetAllClassReplicaInstances(classIdentifier: string): table?
         if not classData[classIdentifier] then
             Logger.warn(`Requested replicas for undefined replica class {classIdentifier}.`)
@@ -74,6 +126,15 @@ function ReplicatorController.__Construct()
         return replicaInstances
     end
 
+    --[=[
+            Caches and broadcasts a newly assigned class replica.
+
+            ### Parameters:
+            ```luau
+            classIdentifier: string -- Replica class identifier.
+            replicaData: table -- Replica payload from the server.
+            ```
+    ]=]
     local function HandleClassReplicaAssigned(classIdentifier: string, replicaData: table)
         local replicaClassCache = replicaCache[classIdentifier]
         if not replicaClassCache then
@@ -93,6 +154,17 @@ function ReplicatorController.__Construct()
         classData[classIdentifier].__CreatedSignal:Fire(replicaData.RootInstance)
     end
 
+    
+    --[=[
+            Applies incoming field changes to an existing class replica.
+
+            ### Parameters:
+            ```luau
+            classIdentifier: string -- Replica class identifier.
+            replicaId: string -- Replica identifier.
+            replicaChanges: table -- Changed keys and values to apply.
+            ```
+    ]=]
     local function HandleClassReplicaUpdated(classIdentifier: string, replicaId: string, replicaChanges: table)
         local replicaClassCache = replicaCache[classIdentifier]
         if not replicaClassCache then
@@ -113,6 +185,15 @@ function ReplicatorController.__Construct()
         classData[classIdentifier].__UpdatedSignal:Fire(replicaData.RootInstance)
     end
     
+    --[=[
+            Removes a class replica from cache and broadcasts destruction.
+
+            ### Parameters:
+            ```luau
+            classIdentifier: string -- Replica class identifier.
+            replicaId: string -- Replica identifier.
+            ```
+    ]=]
     local function HandleClassReplicaDestroyed(classIdentifier: string, replicaId: string)
         local replicaClassCache = replicaCache[classIdentifier]
         if not replicaClassCache then
@@ -130,18 +211,34 @@ function ReplicatorController.__Construct()
         replicaClassCache[replicaId] = nil
     end
 
+    --[=[
+            Tears down signals for a class that is no longer replicated.
+
+            ### Parameters:
+            ```luau
+            classIdentifier: string -- Replica class identifier.
+            ```
+    ]=]
     local function HandleClassUndefined(classIdentifier: string)
-        local classData = classData[classIdentifier]
-        if not classData then
+        local thisClassData = classData[classIdentifier]
+        if not thisClassData then
             return
         end
 
         -- Connections are disconnected automatically when the event is destroyed, so we don't need to manually disconnect them here.
-        classData.__CreatedSignal:Destroy()
-        classData.__UpdatedSignal:Destroy()
-        classData.__DestroyedSignal:Destroy()
+        thisClassData.__CreatedSignal:Destroy()
+        thisClassData.__UpdatedSignal:Destroy()
+        thisClassData.__DestroyedSignal:Destroy()
     end
 
+    --[=[
+            Initializes signal and remote listeners for a newly defined class.
+
+            ### Parameters:
+            ```luau
+            classIdentifier: string -- Replica class identifier.
+            ```
+    ]=]
     local function HandleClassDefined(classIdentifier: string)
         if classData[classIdentifier] then
             return
@@ -157,6 +254,9 @@ function ReplicatorController.__Construct()
         }
     end
 
+    --[=[
+            Requests initial replication data from the server and hydrates cache.
+    ]=]
     local function SyncDataWithServer()
         local serverData = RemoteController.InvokeServer("REPLICATOR_CONTROLLER_REQUEST_REPLICA_DATA")
         if not serverData then

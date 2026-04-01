@@ -18,14 +18,20 @@ function ChatController.__Construct()
     --// TYPES \\--
 
     --// CONSTANTS \\--
-    local GeneralTextChannel: TextChannel = TextChatService.TextChannels.RBXGeneral
     local SystemTextChannel: TextChannel = TextChatService.TextChannels.RBXSystem
     
     --// VARIABLES \\--
 
     --// FUNCTIONS \\--
+
+    --[=[
+        Shows a system message in the chat.
+
+        ```luau
+        message: string -- The message to display.
+        ```
+    ]=]--
     local function DisplaySystemMessage(message: string)
-        -- GeneralTextChannel:DisplaySystemMessage(message)
         SystemTextChannel:DisplaySystemMessage(message)
     end
 

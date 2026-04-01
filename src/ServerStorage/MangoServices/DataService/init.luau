@@ -415,30 +415,6 @@ function DataService.__Construct()
         end
     end
 
-    --[=[
-        Handles a player's request for their ordered data.
-
-        ### Parameters:
-        ```luau
-        player: Player -- The player requesting the data.
-        ```
-
-        ### Returns:
-        ```luau
-        boolean -- Success status.
-        table -- The player's ordered data.
-        ```
-    ]=]
-    local function HandlePlayerOrderedDataRequest(player: Player)
-        local orderedData = {}
-        for storeName: string in loadedOrderedStores do
-            local storeData = GetOrderedStoreKeyData(storeName, player.UserId)
-            orderedData[storeName] = storeData
-        end
-
-        return true, orderedData
-    end
-
     -- Initializes the service.
     local function Init()
         
@@ -497,7 +473,6 @@ function DataService.__Construct()
 
     RemoteService.CreateRemoteEvent("DATA_SERVICE_SYNC_DATA")
     RemoteService.OnServerInvoke("DATA_CONTROLLER_GET_DATA", GetPlayerData)
-    RemoteService.OnServerInvoke("DATA_CONTROLLER_GET_ORDERED_DATA", HandlePlayerOrderedDataRequest)
 end
 
 return DataService

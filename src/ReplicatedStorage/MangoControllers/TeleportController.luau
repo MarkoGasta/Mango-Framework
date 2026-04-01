@@ -35,6 +35,14 @@ function TeleportController.__Construct()
         warn(`[TeleportController] {message}`)
     end
 
+    --[=[
+        Requests the server to teleport the player to a specified place.
+
+        ```luau
+        placeIdentifier: string -- The identifier of the place to teleport to.
+        teleportData: table? -- Optional data to send along with the teleport request.
+        ```
+    ]=]
     local function Teleport(placeIdentifier: string, teleportData: table?)
         local teleportSuccess: boolean, teleportResponse: string? = RemoteController.InvokeServer("TELEPORT_CONTROLLER_REQUEST_TELEPORT", placeIdentifier, teleportData)
         if not teleportSuccess then

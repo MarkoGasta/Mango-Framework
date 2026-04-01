@@ -27,6 +27,20 @@ function RemoteService.__Construct()
 
     --// FUNCTIONS \--
 
+    --[=[
+        Generates and stores a per-player remote validation key.
+
+        ### Parameters:
+        ```luau
+        player: Player -- The player requesting a remote key.
+        ```
+
+        ### Returns:
+        ```luau
+        boolean -- Whether key generation succeeded.
+        number? -- Generated key value when successful.
+        ```
+    ]=]
     local function GenerateKey(player: Player): string
 
         -- Kicking the player if they request a key twice.
@@ -46,12 +60,33 @@ function RemoteService.__Construct()
         MangoServer.SetCacheField(player, "RemoteRandom", playerRandom)
         return true, playerKey
     end
-    
+
+    --[=[
+        Resolves a remote instance by name from remote storage.
+
+        ### Parameters:
+        ```luau
+        name: string -- Remote instance name.
+        ```
+
+        ### Returns:
+        ```luau
+        RemoteEvent | RemoteFunction | nil -- Matching remote instance when found.
+        ```
+    ]=]
     local function GetRequestedRemote(name: string): RemoteEvent | RemoteFunction | nil
         local remoteInstance = RemoteStorage:FindFirstChild(name)
         return remoteInstance
     end
 
+    --[=[
+        Destroys a named remote event if it exists.
+
+        ### Parameters:
+        ```luau
+        eventName: string -- RemoteEvent name to destroy.
+        ```
+    ]=]
     local function DestroyRemoteEvent(eventName: string)
         local remoteEvent = GetRequestedRemote(eventName)
         if remoteEvent and remoteEvent:IsA("RemoteEvent") then
@@ -59,6 +94,14 @@ function RemoteService.__Construct()
         end
     end
 
+    --[=[
+        Destroys a named remote function if it exists.
+
+        ### Parameters:
+        ```luau
+        functionName: string -- RemoteFunction name to destroy.
+        ```
+    ]=]
     local function DestroyRemoteFunction(functionName: string)
         local remoteFunction = GetRequestedRemote(functionName)
         if remoteFunction and remoteFunction:IsA("RemoteFunction") then
@@ -66,6 +109,19 @@ function RemoteService.__Construct()
         end
     end
 
+    --[=[
+        Creates and stores a new remote event.
+
+        ### Parameters:
+        ```luau
+        name: string -- Name to assign to the remote event.
+        ```
+
+        ### Returns:
+        ```luau
+        RemoteEvent -- Newly created remote event.
+        ```
+    ]=]
     local function CreateRemoteEvent(name: string): RemoteEvent
         local remoteEvent = Instance.new("RemoteEvent")
         remoteEvent.Name = name
@@ -73,6 +129,19 @@ function RemoteService.__Construct()
         return remoteEvent
     end
 
+    --[=[
+        Creates and stores a new remote function.
+
+        ### Parameters:
+        ```luau
+        name: string -- Name to assign to the remote function.
+        ```
+
+        ### Returns:
+        ```luau
+        RemoteFunction -- Newly created remote function.
+        ```
+    ]=]
     local function CreateRemoteFunction(name: string): RemoteFunction
         local remoteFunction = Instance.new("RemoteFunction")
         remoteFunction.Name = name
@@ -80,6 +149,21 @@ function RemoteService.__Construct()
         return remoteFunction
     end
 
+    --[=[
+        Fires a remote event to one client.
+
+        ### Parameters:
+        ```luau
+        player: Player -- Target player.
+        eventName: string -- RemoteEvent name.
+        ...: any... -- Event payload values.
+        ```
+
+        ### Returns:
+        ```luau
+        boolean -- Whether the event was fired.
+        ```
+    ]=]
     local function FireClient(player: Player, eventName: string, ...: any...): boolean
         local remoteEvent = GetRequestedRemote(eventName)
         if not remoteEvent then
@@ -95,6 +179,21 @@ function RemoteService.__Construct()
         return true
     end
 
+    --[=[
+        Fires a remote event to a list of clients.
+
+        ### Parameters:
+        ```luau
+        players: {Player} -- Target players.
+        eventName: string -- RemoteEvent name.
+        ...: any... -- Event payload values.
+        ```
+
+        ### Returns:
+        ```luau
+        boolean -- Whether the event was fired.
+        ```
+    ]=]
     local function FireClients(players: {Player}, eventName: string, ...: any...): boolean
         local remoteEvent = GetRequestedRemote(eventName)
         if not remoteEvent then
@@ -118,6 +217,20 @@ function RemoteService.__Construct()
         return true
     end
 
+    --[=[
+        Fires a remote event to all connected clients.
+
+        ### Parameters:
+        ```luau
+        eventName: string -- RemoteEvent name.
+        ...: any... -- Event payload values.
+        ```
+
+        ### Returns:
+        ```luau
+        boolean -- Whether the event was fired.
+        ```
+    ]=]
     local function FireAllClients(eventName: string, ...: any...): boolean
         local remoteEvent = GetRequestedRemote(eventName)
         if not remoteEvent then
@@ -133,6 +246,20 @@ function RemoteService.__Construct()
         return true
     end
 
+    --[=[
+        Connects a callback to a server remote event with key validation.
+
+        ### Parameters:
+        ```luau
+        eventName: string -- RemoteEvent name.
+        callback: (Player, any...) -> () -- Handler called after validation.
+        ```
+
+        ### Returns:
+        ```luau
+        table? -- Connector connection table when successful.
+        ```
+    ]=]
     local function OnServerEvent(eventName: string, callback: (Player, any...) -> ()): table?
         local remoteEvent = GetRequestedRemote(eventName)
         if not remoteEvent then
@@ -171,6 +298,20 @@ function RemoteService.__Construct()
         end)
     end
 
+    --[=[
+        Registers a server invoke handler with key validation.
+
+        ### Parameters:
+        ```luau
+        functionName: string -- RemoteFunction name.
+        callback: (Player, any...) -> (any...) -- Invoke handler called after validation.
+        ```
+
+        ### Returns:
+        ```luau
+        RemoteFunction? -- Registered remote function when successful.
+        ```
+    ]=]
     local function OnServerInvoke(functionName: string, callback: (Player, any...) -> (any...)): RemoteFunction?
         local remoteFunction = GetRequestedRemote(functionName)
         if not remoteFunction then

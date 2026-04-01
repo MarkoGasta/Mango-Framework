@@ -7,10 +7,7 @@ function InterfaceController.__Construct()
 
     --// SERVICES \--
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local TweenService = game:GetService("TweenService")
-    local StarterGui = game:GetService("StarterGui")
     local Workspace = game:GetService("Workspace")
-    local Lighting = game:GetService("Lighting")
     local Players = game:GetService("Players")
 
     --// CONFIG \--
@@ -52,7 +49,7 @@ function InterfaceController.__Construct()
     local interfaceModules = {}
     local moduleCache = {}
     local dynamicFrames = {}
-    local dynamicFrameFlagHandlerCache = {}
+    local dynamicFrameHandlerCache = {}
     local openDynamicFrames = {}
     local groupDynamicFrames = {}
 
@@ -108,7 +105,7 @@ function InterfaceController.__Construct()
         end
 
         if dynamicFrameData._MethodFlag then
-            local flagHandler = dynamicFrameFlagHandlerCache[dynamicFrameData._MethodFlag]
+            local flagHandler = dynamicFrameHandlerCache[dynamicFrameData._MethodFlag]
             if not flagHandler then
                 Logger.warn(`No dynamic frame flag handler found for method flag {dynamicFrameData._MethodFlag}, cannot close frame {closingFrameName}`)
                 return
@@ -186,7 +183,7 @@ function InterfaceController.__Construct()
         end
 
         if dynamicFrameData._MethodFlag then
-            local flagHandler = dynamicFrameFlagHandlerCache[dynamicFrameData._MethodFlag]
+            local flagHandler = dynamicFrameHandlerCache[dynamicFrameData._MethodFlag]
             if not flagHandler then
                 Logger.warn(`No dynamic frame flag handler found for method flag {dynamicFrameData._MethodFlag}, cannot open frame {openingFrameName}`)
                 return
@@ -378,7 +375,7 @@ function InterfaceController.__Construct()
         --// EXPORTS \--
         
         --// RUNTIME \--
-        SubmoduleUtils.InitializeChildrenSubmodules(script.DynamicFrameFlagHandlers)
+        SubmoduleUtils.InitializeChildrenSubmodules(script.DynamicFrameHandlers)
         InitializeInterfaceSubmodules()
     end
 
@@ -395,9 +392,9 @@ function InterfaceController.__Construct()
     --// RUNTIME \--
     CreateMainGui()
 
-    SubmoduleUtils.ConstructChildrenSubmodules(script.DynamicFrameFlagHandlers, {
+    SubmoduleUtils.ConstructChildrenSubmodules(script.DynamicFrameHandlers, {
         ConstructionArguments = {InterfaceController.MainGui},
-        Cache = dynamicFrameFlagHandlerCache,
+        Cache = dynamicFrameHandlerCache,
     })
 
     CompileInterfaceModuleArray()
