@@ -1,6 +1,17 @@
-mise.toml
-utils
+# Evirnonment
 .github
 .vscode
-wally.lock
-wally.toml
+
+# Configuration
+selene.toml
+mise.toml
+
+# Utilities
+utils
+.venv
+
+# Build files
+*.rbxlx
+*.rbxlx.lock
+*.rbxl
+*.rbxk.lock
