@@ -4,5 +4,8 @@
 ### Instructions
 Installation and usage instructions can be found in the [documentation](https://markogasta.github.io/Mango-Framework-Docs/install/from_source/).
 
+### Branch Info
+**Main Branch** - Contains all the extended features of **Mango Framework**. This includes controllers, services, utils and modules. The combination of these integrated modules allows you to focus more on whats important without needing to work on boilerplate. Next to the efficiency boost, the internat wrappers provide much more convenient use of features.
+
 ### Disclaimer
 This framework is still being developed which means that some of it's features might not be fully functional. For issues you might face, open an issue and report it. A fix might take some time to implement due to the framework development being intertwined with my tight work and school schedule.
