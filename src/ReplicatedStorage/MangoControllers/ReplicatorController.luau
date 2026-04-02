@@ -18,6 +18,9 @@ function ReplicatorController.__Construct()
     local Logger = MangoClient.Require("Logger")
     local ReplicatorSettings = MangoClient.Require("ReplicatorSettings")
 
+    local RehydratorController = MangoClient.CheckModuleExists("RehydratorController")
+        and MangoClient.Require("RehydratorController")
+
     --// TYPES \\--
 
     --// CONSTANTS \\--
@@ -148,6 +151,11 @@ function ReplicatorController.__Construct()
             end
 
             return
+        end
+
+        -- Use rehydrator if available.
+        if replicaData.RootInstance.RHDClassData then
+            RehydratorController.Rehydrate(replicaData.RootInstance)
         end
 
         replicaClassCache[replicaData.Id] = replicaData
