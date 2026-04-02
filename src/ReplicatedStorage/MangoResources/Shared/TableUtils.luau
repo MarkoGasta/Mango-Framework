@@ -607,6 +607,10 @@ local function InternalCopyTable(orginalTable: table, primaryTable: table, curre
 			continue
 		end
 
+		if options.ExcludePrivateKeys and typeof(key) == "string" and string.sub(key, 1, 1) == "_" then
+			continue
+		end
+
 		if typeof(value) == "table" then
 			if value == primaryTable then
 				tableCopy[key] = tableCopy
