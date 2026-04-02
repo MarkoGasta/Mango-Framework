@@ -319,7 +319,7 @@ function ReplicatorService.__Construct()
         table -- The internal replica data.
         ```
     ]=]
-    local function AssignReplica(instance: table, options: AssignReplicaOptions?): (table, table)
+    local function AssignReplica<ToReplicate>(instance: ToReplicate, options: AssignReplicaOptions?): (ToReplicate, table)
         options = if options
             then TableUtils.MergeDictionaries(options, AssignReplicaOptionsDefault)
             else AssignReplicaOptionsDefault
@@ -371,7 +371,6 @@ function ReplicatorService.__Construct()
                 replicas[replica.Id] = safeReplica
             end
         end
-
         return {
             Classes = replicaClasses,
             Replicas = replicas,
