@@ -32,9 +32,10 @@ local RunService = game:GetService("RunService")
 local MODULE_WAIT_TIMEOUT = 10
 local MODULE_CONTAINERS = {
     ReplicatedFirst,
-    ReplicatedStorage:WaitForChild("Controllers"),
+    ReplicatedStorage:WaitForChild("Classes"),
     ReplicatedStorage:WaitForChild("Settings"),
     ReplicatedStorage:WaitForChild("Resources"),
+    ReplicatedStorage:WaitForChild("Controllers"),
     ReplicatedStorage:WaitForChild("MangoControllers"),
     ReplicatedStorage:WaitForChild("MangoResources"):WaitForChild("Client"),
     ReplicatedStorage:WaitForChild("MangoResources"):WaitForChild("Shared"),
@@ -95,6 +96,34 @@ local function LockModule(moduleName: string)
 end
 
 --[=[
+    Checks if a module exists in the specified module containers.
+
+    ### Parameters:
+    ```luau
+    moduleName: string -- The name of the module to check for.
+    ```
+
+    ### Returns:
+    ```luau
+    boolean -- True if the module exists, false otherwise.
+    ```
+]=]
+local function CheckModuleExists(moduleName: string): boolean
+    if moduleCache[moduleName] then
+        return true
+    end
+
+    for _, moduleContainer: Folder in MODULE_CONTAINERS do
+        local module: ModuleScript? = moduleContainer:FindFirstChild(moduleName, true)
+        if module then
+            return true
+        end
+    end
+
+    return false
+end
+
+--[=[
 	Requires a module from specified containers with caching and construction logic.
 
 	### Parameters:
@@ -107,7 +136,7 @@ end
 	any -- The required module, or nil if not found or locked.
 	```
 ]=]
-local function Require(moduleName: Types.ModuleNames)
+local function Require(moduleName: Types.ModuleNames): any
     if lockedModules[moduleName] then
         LogError(`Module '{moduleName}' is locked and cannot be required`)
         return nil
@@ -165,6 +194,7 @@ end
 --// EXPORTS \\--
 MangoClient.CacheModule = CacheModule
 MangoClient.LockModule = LockModule
+MangoClient.CheckModuleExists = CheckModuleExists
 MangoClient.Require = Require:: Types.Modules
 
 --// RUNTIME \\--
