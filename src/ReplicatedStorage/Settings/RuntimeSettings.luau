@@ -12,6 +12,7 @@ return {
     SERVICE_PRIORITIES = {
         GameService = 99,
         DataService = 9,
+        RehydratorService = 2,
         RemoteService = 1,
     },
 
